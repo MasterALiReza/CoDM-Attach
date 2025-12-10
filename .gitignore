@@ -61,3 +61,10 @@ Desktop.ini
 Temp/
 
 # Analytics data (runtime) - removed (PG-only)
+
+# Upload Scripts & Temporary Files
+prepare_upload.py
+PUSH_INSTRUCTIONS.md
+status_report.md
+upload_batch_*.json
+upload_batch_*.jsonl
