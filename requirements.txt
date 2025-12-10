@@ -1,0 +1,27 @@
+python-telegram-bot==21.5
+python-dotenv==1.0.0
+
+# جستجوی پیشرفته - Fuzzy Search
+fuzzywuzzy==0.18.0
+# python-Levenshtein removed - requires C++ compiler on Windows
+# fuzzywuzzy works without it (pure Python fallback)
+
+# Database drivers - PostgreSQL only
+psycopg[binary]>=3.2.3  # PostgreSQL driver v3
+psycopg-pool>=3.2.3  # Connection pooling for psycopg
+
+# Job Scheduling & Automation
+APScheduler==3.10.4
+schedule==1.2.1
+
+# External Data Sources
+feedparser==6.0.11
+beautifulsoup4==4.12.3
+# lxml==5.3.0  # Parser for beautifulsoup4
+
+# Additional utilities (optional)
+requests==2.32.3  # For API calls (if not already included)
+
+# Testing
+pytest==8.2.1
+pytest-asyncio==0.23.5

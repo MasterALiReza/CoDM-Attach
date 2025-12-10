@@ -1,0 +1,77 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Tests
+tests/
+htmlcov/
+.coverage
+.pytest_cache/
+*.cover
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+docs/
+Docs/
+
+# Development files
+requirements-dev.txt
+.editorconfig
+.pre-commit-config.yaml
+
+# Logs (will be created at runtime)
+logs/*.log
+
+# Backups (will be created at runtime)
+backups/*.json
+backups/*.db
+backups/*.sql
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Docker
+.dockerignore
+Dockerfile
+docker-compose.yml
