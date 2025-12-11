@@ -358,10 +358,22 @@ def get_admin_conversation_states(admin_handlers):
             CallbackQueryHandler(admin_handlers.category_clear_cancel, pattern="^cat_clear_cancel$"),
             CallbackQueryHandler(admin_handlers.handle_navigation_back, pattern="^nav_back$")
         ],
-        # بقیه states ادامه دارد...
-        # ⚠️ به دلیل محدودیت token، لیست کامل در main.py موجود است
-        # این فایل تنها برای ساختاردهی است و در نهایت تمام states را از main.py کپی می‌کند
+        # ========== Admin Management States ==========
+        ADD_ADMIN_ID: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            MessageHandler(filters.Regex('^پنل ادمین$'), admin_handlers.admin_menu_return),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handlers.add_admin_id_received),
+            CallbackQueryHandler(admin_handlers.manage_admins_menu, pattern="^manage_admins$"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
+        ],
+        ADD_ADMIN_DISPLAY_NAME: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            MessageHandler(filters.Regex('^پنل ادمین$'), admin_handlers.admin_menu_return),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handlers.add_admin_display_name_received),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
+        ],
     }
+
     
     # فیلتر None values
     for state_key in states_dict:
