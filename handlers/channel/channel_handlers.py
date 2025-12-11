@@ -19,6 +19,7 @@ CHANNEL_MENU = "CHANNEL_MENU"
 ADD_CHANNEL_ID = "ADD_CHANNEL_ID"
 ADD_CHANNEL_TITLE = "ADD_CHANNEL_TITLE"
 ADD_CHANNEL_URL = "ADD_CHANNEL_URL"
+ADD_CHANNEL_CONFIRM = "ADD_CHANNEL_CONFIRM"
 EDIT_CHANNEL_SELECT = "EDIT_CHANNEL_SELECT"
 EDIT_CHANNEL_FIELD = "EDIT_CHANNEL_FIELD"
 EDIT_CHANNEL_VALUE = "EDIT_CHANNEL_VALUE"
@@ -394,7 +395,15 @@ async def add_channel_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_valid, error_or_value = validate_channel_id(channel_id)
     
     if not is_valid:
-        await update.message.reply_text(f"❌ {error_or_value}")
+        try:
+            lang = get_user_lang(update, context, context.bot_data.get('database')) or 'fa'
+        except Exception:
+            lang = 'fa'
+        keyboard = [[InlineKeyboardButton(t('menu.buttons.cancel', lang), callback_data="channel_menu")]]
+        await update.message.reply_text(
+            f"❌ {error_or_value}",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
         return ADD_CHANNEL_ID
     
     # استفاده از مقدار validated
@@ -501,7 +510,11 @@ async def add_channel_title(update: Update, context: ContextTypes.DEFAULT_TYPE):
             lang = get_user_lang(update, context, context.bot_data.get('database')) or 'fa'
         except Exception:
             lang = 'fa'
-        await update.message.reply_text(t('admin.channels.errors.empty_title', lang))
+        keyboard = [[InlineKeyboardButton(t('menu.buttons.cancel', lang), callback_data="channel_menu")]]
+        await update.message.reply_text(
+            t('admin.channels.errors.empty_title', lang),
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
         return ADD_CHANNEL_TITLE
     
     context.user_data['temp_channel']['display_title'] = title
@@ -539,8 +552,10 @@ async def add_channel_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         lang = 'fa'
     if not url.startswith('https://t.me/'):
+        keyboard = [[InlineKeyboardButton(t('menu.buttons.cancel', lang), callback_data="channel_menu")]]
         await update.message.reply_text(
-            t('admin.channels.errors.invalid_link', lang)
+            t('admin.channels.errors.invalid_link', lang),
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return ADD_CHANNEL_URL
     
@@ -549,12 +564,54 @@ async def add_channel_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(t('admin.channels.errors.missing_temp', lang))
         return ConversationHandler.END
     
+    # ذخیره URL در داده موقت
+    context.user_data['temp_channel']['url'] = url
+    
+    # نمایش تاییدیه
+    message = (
+        t('admin.channels.add.confirm.title', lang) + "\n\n" +
+        t('admin.channels.add.confirm.body', lang, 
+          title=temp_channel['display_title'],
+          url=url,
+          id=temp_channel['channel_id'])
+    )
+    
+    keyboard = [
+        [InlineKeyboardButton(t('admin.channels.add.confirm.save', lang), callback_data="save_channel")],
+        [InlineKeyboardButton(t('admin.channels.add.confirm.edit', lang), callback_data="add_channel")], # Restart flow
+        [InlineKeyboardButton(t('admin.channels.add.confirm.cancel', lang), callback_data="channel_menu")]
+    ]
+    
+    await update.message.reply_text(
+        message,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode='HTML'
+    )
+    
+    return ADD_CHANNEL_CONFIRM
+
+
+async def save_channel_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """ذخیره نهایی کانال پس از تایید"""
+    query = update.callback_query
+    await query.answer()
+    
+    try:
+        lang = get_user_lang(update, context, context.bot_data.get('database')) or 'fa'
+    except Exception:
+        lang = 'fa'
+        
+    temp_channel = context.user_data.get('temp_channel')
+    if not temp_channel or 'url' not in temp_channel:
+        await safe_edit_message_text(query, t('admin.channels.errors.missing_temp', lang))
+        return ConversationHandler.END
+        
     # ذخیره در دیتابیس
     db = context.bot_data['database']
     success = db.add_required_channel(
         channel_id=temp_channel['channel_id'],
         title=temp_channel['display_title'],
-        url=url
+        url=temp_channel['url']
     )
     
     if success:
@@ -571,7 +628,7 @@ async def add_channel_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
             analytics.track_channel_added(
                 channel_id=temp_channel['channel_id'],
                 title=temp_channel['display_title'],
-                url=url,
+                url=temp_channel['url'],
                 admin_id=update.effective_user.id
             )
         except Exception as e:
@@ -585,7 +642,8 @@ async def add_channel_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     keyboard = [[InlineKeyboardButton(t('menu.buttons.back', lang), callback_data="channel_menu")]]
     
-    await update.message.reply_text(
+    await safe_edit_message_text(
+        query,
         message,
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode='HTML'
@@ -1509,6 +1567,11 @@ def get_channel_management_handler():
             ],
             ADD_CHANNEL_URL: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, add_channel_url),
+                CallbackQueryHandler(cancel, pattern="^channel_menu$")
+            ],
+            ADD_CHANNEL_CONFIRM: [
+                CallbackQueryHandler(save_channel_confirm, pattern="^save_channel$"),
+                CallbackQueryHandler(add_channel_start, pattern="^add_channel$"), # Restart
                 CallbackQueryHandler(cancel, pattern="^channel_menu$")
             ],
             EDIT_CHANNEL_SELECT: [
