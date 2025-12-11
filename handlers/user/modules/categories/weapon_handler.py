@@ -29,6 +29,7 @@ class WeaponHandler(BaseUserHandler):
         
         category = query.data.replace("cat_", "")
         
+        
         # بررسی فعال بودن دسته برای mode انتخاب شده
         from config.config import is_category_enabled
         mode = context.user_data.get('selected_mode', 'mp')

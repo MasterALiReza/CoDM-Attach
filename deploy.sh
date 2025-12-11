@@ -287,6 +287,25 @@ setup_database() {
     print_success "Database setup complete"
 }
 
+seed_database() {
+    print_header "Seeding Database"
+    
+    if [ ! -f "$INSTALL_DIR/scripts/seed_weapons.py" ]; then
+        print_error "Seed script not found!"
+        return
+    fi
+    
+    print_step "Running weapon seeder..."
+    cd "$INSTALL_DIR"
+    sudo -u $BOT_USER "$INSTALL_DIR/venv/bin/python" scripts/seed_weapons.py
+    
+    if [ $? -eq 0 ]; then
+        print_success "Database seeded successfully"
+    else
+        print_error "Seeding failed"
+    fi
+}
+
 setup_bot_config() {
     print_header "Telegram Bot Configuration"
     
@@ -476,7 +495,10 @@ install_bot() {
     # Step 7: Setup super admin
     setup_super_admin
     
-    # Step 8: Create systemd service
+    # Step 8: Seed database
+    seed_database
+    
+    # Step 9: Create systemd service
     print_header "Setting up Systemd Service"
     
     cat > "/etc/systemd/system/$SERVICE_NAME.service" <<EOF
@@ -696,6 +718,9 @@ update_bot() {
     sudo -u $BOT_USER "$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt" --upgrade >/dev/null 2>&1
     print_success "Libraries updated"
     
+    # Seed database (to ensure new weapons are added)
+    seed_database
+    
     # Restart service
     print_step "Restarting service..."
     systemctl start $SERVICE_NAME
@@ -838,6 +863,7 @@ show_main_menu() {
         echo -e "${CYAN}║${NC}  ${GREEN}7.${NC} Bot Status ${BLUE}(Check service status)${NC}                          ${CYAN}║${NC}"
         echo -e "${CYAN}║${NC}  ${GREEN}8.${NC} View Logs                                                    ${CYAN}║${NC}"
         echo -e "${CYAN}║${NC}  ${GREEN}9.${NC} Backup ${MAGENTA}(Database & Config)${NC}                               ${CYAN}║${NC}"
+        echo -e "${CYAN}║${NC}  ${GREEN}10.${NC} Seed Database ${YELLOW}(Fix missing weapons)${NC}                      ${CYAN}║${NC}"
         echo -e "${CYAN}║${NC}  ${GREEN}0.${NC} Exit                                                         ${CYAN}║${NC}"
         echo -e "${CYAN}║${NC}                                                                    ${CYAN}║${NC}"
         echo -e "${CYAN}╚════════════════════════════════════════════════════════════════════╝${NC}"
@@ -882,6 +908,10 @@ show_main_menu() {
             7) show_status ;;
             8) show_logs ;;
             9) backup_bot ;;
+            10) 
+                seed_database 
+                press_any_key
+                ;;
             0)
                 clear
                 echo -e "${GREEN}Goodbye! 👋${NC}"

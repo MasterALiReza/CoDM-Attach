@@ -181,7 +181,7 @@ def build_weapon_keyboard(weapons: list, callback_prefix: str, category: str = N
 CATEGORY_SETTINGS = {
     'mp': {
         'assault_rifle': {'enabled': True},
-        'launcher': {'enabled': False},
+        'launcher': {'enabled': True},
         'lmg': {'enabled': True},
         'marksman': {'enabled': True},
         'pistol': {'enabled': True},
@@ -191,7 +191,7 @@ CATEGORY_SETTINGS = {
     },
     'br': {
         'assault_rifle': {'enabled': True},
-        'launcher': {'enabled': False},
+        'launcher': {'enabled': True},
         'lmg': {'enabled': True},
         'marksman': {'enabled': True},
         'pistol': {'enabled': True},
