@@ -283,6 +283,70 @@ class DatabasePostgres:
                 except Exception as e:
                     logger.warning(f"ensure_schema(create users) warning: {e}")
 
+                # 0.1) Ensure 'admins' table exists
+                try:
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS admins (
+                            user_id BIGINT PRIMARY KEY,
+                            username TEXT,
+                            first_name TEXT,
+                            role TEXT DEFAULT 'admin',
+                            created_at TIMESTAMP DEFAULT NOW()
+                        )
+                    """)
+                except Exception as e:
+                    logger.warning(f"ensure_schema(create admins) warning: {e}")
+
+                # 0.2) Ensure 'user_attachment_settings' table exists
+                try:
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS user_attachment_settings (
+                            setting_key TEXT PRIMARY KEY,
+                            setting_value TEXT,
+                            description TEXT,
+                            updated_at TIMESTAMP DEFAULT NOW()
+                        )
+                    """)
+                    # Insert default settings if not exist
+                    cursor.execute("""
+                        INSERT INTO user_attachment_settings (setting_key, setting_value, description)
+                        VALUES ('system_enabled', 'true', 'Enable/Disable User Attachments System')
+                        ON CONFLICT (setting_key) DO NOTHING
+                    """)
+                except Exception as e:
+                    logger.warning(f"ensure_schema(create user_attachment_settings) warning: {e}")
+
+                # 0.3) Ensure 'bot_settings' table exists
+                try:
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS bot_settings (
+                            key TEXT PRIMARY KEY,
+                            value TEXT,
+                            description TEXT,
+                            updated_at TIMESTAMP DEFAULT NOW()
+                        )
+                    """)
+                except Exception as e:
+                    logger.warning(f"ensure_schema(create bot_settings) warning: {e}")
+
+                # 0.4) Ensure 'attachments' table exists
+                try:
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS attachments (
+                            id SERIAL PRIMARY KEY,
+                            name TEXT NOT NULL,
+                            code TEXT UNIQUE NOT NULL,
+                            file_id TEXT,
+                            type TEXT,
+                            downloads INTEGER DEFAULT 0,
+                            created_at TIMESTAMP DEFAULT NOW(),
+                            updated_at TIMESTAMPTZ DEFAULT NOW(),
+                            order_index INTEGER
+                        )
+                    """)
+                except Exception as e:
+                    logger.warning(f"ensure_schema(create attachments) warning: {e}")
+
                 # 0.5) users.language and users.last_seen (compatibility check)
                 try:
                     # language TEXT DEFAULT 'fa'
