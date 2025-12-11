@@ -136,14 +136,24 @@ class AdminManagementHandler(BaseAdminHandler):
         role_counts = {}
         for a in admins:
             roles = a.get('roles', []) or []
-            if any(r.get('name') == 'super_admin' for r in roles):
-                super_admins += 1
+            for r in roles:
+                if isinstance(r, str):
+                    if r == 'super_admin':
+                        super_admins += 1
+                elif r.get('name') == 'super_admin':
+                    super_admins += 1
             if len(roles) > 1:
                 multi_role_admins += 1
             for r in roles:
-                r_name = r.get('name') or 'unknown'
-                r_disp = r.get('display_name') or r_name
-                r_icon = r.get('icon') or '👤'
+                if isinstance(r, str):
+                    r_name = r
+                    r_disp = t(f"roles.names.{r_name}", lang) or r_name
+                    r_icon = '👤'
+                else:
+                    r_name = r.get('name') or 'unknown'
+                    r_disp = r.get('display_name') or r_name
+                    r_icon = r.get('icon') or '👤'
+                
                 key = r_name
                 if key not in role_counts:
                     role_counts[key] = {'count': 0, 'display_name': r_disp, 'icon': r_icon}
@@ -207,12 +217,19 @@ class AdminManagementHandler(BaseAdminHandler):
                 role_names_local = []
                 roles = admin.get('roles', []) or []
                 for role in roles:
-                    icon = role.get('icon', '👤')
+                    if isinstance(role, str):
+                        icon = '👤'
+                        role_key = role
+                        name_local_raw = t(f"roles.names.{role_key}", lang)
+                        name_local = _strip_emoji(name_local_raw if name_local_raw and not name_local_raw.startswith('roles.names.') else role_key)
+                    else:
+                        icon = role.get('icon', '👤')
+                        role_key = role.get('name') or ''
+                        name_local_raw = t(f"roles.names.{role_key}", lang)
+                        name_local = _strip_emoji(name_local_raw if name_local_raw and not name_local_raw.startswith('roles.names.') else (role.get('display_name') or ''))
+                    
                     if icon not in role_icons:
                         role_icons.append(icon)
-                    role_key = role.get('name') or ''
-                    name_local_raw = t(f"roles.names.{role_key}", lang)
-                    name_local = _strip_emoji(name_local_raw if name_local_raw and not name_local_raw.startswith('roles.names.') else (role.get('display_name') or ''))
                     role_names_local.append(name_local)
                 
                 icons_str = ''.join(role_icons) if role_icons else '👤'
@@ -544,7 +561,11 @@ class AdminManagementHandler(BaseAdminHandler):
             role_icons = []
             if admin.get('roles'):
                 for role in admin['roles']:
-                    icon = role.get('icon', '👤')
+                    if isinstance(role, str):
+                        icon = '👤'
+                    else:
+                        icon = role.get('icon', '👤')
+                    
                     if icon not in role_icons:
                         role_icons.append(icon)
             
@@ -618,7 +639,12 @@ class AdminManagementHandler(BaseAdminHandler):
         lang = get_user_lang(update, context, self.db) or 'fa'
         current_role_lines = []
         for r in current_roles:
-            current_role_lines.append(f"  {r.get('display_name') or t('common.unknown', lang)}")
+            if isinstance(r, str):
+                role_name = r
+                role_disp = t(f"roles.names.{role_name}", lang) or role_name
+            else:
+                role_disp = r.get('display_name') or t('common.unknown', lang)
+            current_role_lines.append(f"  {role_disp}")
         
         text = t("admin.admin_mgmt.manage_roles.title", lang) + "\n\n"
         # اولویت: @username → display_name → first_name → ID
