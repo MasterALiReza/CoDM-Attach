@@ -43,7 +43,12 @@ class ContactHandlerRegistry(BaseHandlerRegistry):
             entry_points=[
                 CallbackQueryHandler(self.contact_handlers.contact_menu, pattern="^contact$"),
                 MessageHandler(filters.Regex('^📞 تماس با ما$'), self.contact_handlers.contact_menu),
-                MessageHandler(filters.Regex('^📞 Contact Us$'), self.contact_handlers.contact_menu)
+                MessageHandler(filters.Regex('^📞 Contact Us$'), self.contact_handlers.contact_menu),
+                # Add entry points for inner buttons to handle restarts/cross-conversation
+                CallbackQueryHandler(self.contact_handlers.new_ticket_start, pattern="^contact_new_ticket$"),
+                CallbackQueryHandler(self.contact_handlers.my_tickets, pattern="^contact_my_tickets$"),
+                CallbackQueryHandler(self.contact_handlers.faq_menu, pattern="^contact_faq$"),
+                CallbackQueryHandler(self.contact_handlers.feedback_start, pattern="^contact_feedback$")
             ],
             states={
                 CONTACT_MENU: [
