@@ -1005,7 +1005,11 @@ class AdminManagementHandler(BaseAdminHandler):
             role_icons = []
             if admin.get('roles'):
                 for role in admin['roles']:
-                    icon = role.get('icon', '👤')
+                    if isinstance(role, str):
+                        icon = '👤'
+                    else:
+                        icon = role.get('icon', '👤')
+                    
                     if icon not in role_icons:
                         role_icons.append(icon)
             
