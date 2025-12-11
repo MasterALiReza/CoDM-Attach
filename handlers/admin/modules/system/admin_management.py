@@ -754,7 +754,11 @@ class AdminManagementHandler(BaseAdminHandler):
         # ساخت لیست نقش‌های فعلی
         role_lines = []
         for r in current_roles:
-            role_lines.append(f"  {r['display_name']}")
+            if isinstance(r, str):
+                role_disp = t(f"roles.names.{r}", lang) or r
+            else:
+                role_disp = r.get('display_name') or t('common.unknown', lang)
+            role_lines.append(f"  {role_disp}")
         
         lang = get_user_lang(update, context, self.db) or 'fa'
         msg = t("admin.admin_mgmt.add_role.success.title", lang) + "\n\n"
@@ -839,9 +843,16 @@ class AdminManagementHandler(BaseAdminHandler):
         
         keyboard = []
         for role in current_roles:
+            if isinstance(role, str):
+                role_name = role
+                role_disp = t(f"roles.names.{role_name}", lang) or role_name
+            else:
+                role_name = role.get('name')
+                role_disp = role.get('display_name') or role_name
+            
             keyboard.append([InlineKeyboardButton(
-                role['display_name'],
-                callback_data=f"delconfirm_{role['name']}"
+                role_disp,
+                callback_data=f"delconfirm_{role_name}"
             )])
         
         keyboard.append([InlineKeyboardButton(t("menu.buttons.back", lang), callback_data="manage_admins")])

@@ -542,6 +542,7 @@
   "roles.names.full_content_admin": "ادمین محتوا",
   "roles.names.ua_moderator": "ادمین اتچمنت کاربران",
   "roles.names.support_admin": "ادمین پشتیبانی",
+  "roles.names.admin": "ادمین",
   "admin.admin_mgmt.buttons.role_stats": "📊 آمار نقش‌ها",
   "admin.admin_mgmt.add_admin.choose_role.title": "🎭 **انتخاب نقش ادمین جدید**",
   "admin.admin_mgmt.add_admin.choose_role.prompt": "لطفاً نقش مورد نظر را انتخاب کنید:",
