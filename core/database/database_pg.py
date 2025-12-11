@@ -268,7 +268,22 @@ class DatabasePostgres:
                     row = cursor.fetchone()
                     return bool(row.get('exists')) if row else False
 
-                # 0) users.language and users.last_seen (compatibility with adapters)
+                # 0) Ensure 'users' table exists
+                try:
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS users (
+                            user_id BIGINT PRIMARY KEY,
+                            username TEXT,
+                            first_name TEXT,
+                            language TEXT DEFAULT 'fa',
+                            last_seen TIMESTAMP,
+                            created_at TIMESTAMP DEFAULT NOW()
+                        )
+                    """)
+                except Exception as e:
+                    logger.warning(f"ensure_schema(create users) warning: {e}")
+
+                # 0.5) users.language and users.last_seen (compatibility check)
                 try:
                     # language TEXT DEFAULT 'fa'
                     if _table_exists('users'):
