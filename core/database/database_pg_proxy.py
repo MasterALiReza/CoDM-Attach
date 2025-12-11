@@ -4254,7 +4254,18 @@ class DatabasePostgresProxy(DatabasePostgres):
     def _ensure_admins_schema(self):
         """Ensure admins table has all required columns"""
         try:
-            # Add is_active if not exists
+            # First check if is_active column already exists to avoid unnecessary ALTER TABLE
+            check_query = """
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name = 'admins' AND column_name = 'is_active'
+            """
+            result = self.execute_query(check_query, fetch_one=True)
+            
+            if result:
+                # Column already exists, no need to alter
+                return
+            
+            # Column doesn't exist, try to add it
             self.execute_query(
                 "ALTER TABLE admins ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;"
             )

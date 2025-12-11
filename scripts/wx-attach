@@ -1,0 +1,753 @@
+#!/bin/bash
+
+# ============================================================================
+# CODM Attachments Bot - Management CLI Tool
+# ============================================================================
+# Usage: wx-attach [command]
+# Commands:
+#   start    - Start the bot
+#   stop     - Stop the bot
+#   restart  - Restart the bot
+#   status   - Show bot status
+#   logs     - View bot logs
+#   (no args)- Interactive menu
+# ============================================================================
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
+WHITE='\033[1;37m'
+NC='\033[0m' # No Color
+BOLD='\033[1m'
+
+# Configuration
+INSTALL_DIR="/opt/codm-bot"
+SERVICE_NAME="codm-bot"
+ENV_FILE="$INSTALL_DIR/.env"
+VENV_PYTHON="$INSTALL_DIR/venv/bin/python"
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
+
+print_header() {
+    clear
+    echo -e "${CYAN}"
+    echo "╔════════════════════════════════════════════════════════════════╗"
+    echo "║                                                                ║"
+    echo "║       🎮  CODM Attachments Bot Manager  🎮                     ║"
+    echo "║                                                                ║"
+    echo "╚════════════════════════════════════════════════════════════════╝"
+    echo -e "${NC}"
+}
+
+print_menu() {
+    echo -e "${WHITE}┌────────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${WHITE}│${NC}  ${GREEN}1.${NC} 🟢 Start Bot                                              ${WHITE}│${NC}"
+    echo -e "${WHITE}│${NC}  ${GREEN}2.${NC} 🔴 Stop Bot                                               ${WHITE}│${NC}"
+    echo -e "${WHITE}│${NC}  ${GREEN}3.${NC} 🔄 Restart Bot                                            ${WHITE}│${NC}"
+    echo -e "${WHITE}│${NC}  ${GREEN}4.${NC} 📊 View Status                                            ${WHITE}│${NC}"
+    echo -e "${WHITE}│${NC}  ${GREEN}5.${NC} 📋 View Logs                                              ${WHITE}│${NC}"
+    echo -e "${WHITE}├────────────────────────────────────────────────────────────────┤${NC}"
+    echo -e "${WHITE}│${NC}  ${YELLOW}6.${NC} 👤 Admin Management                                        ${WHITE}│${NC}"
+    echo -e "${WHITE}│${NC}  ${YELLOW}7.${NC} ⚙️  Configuration                                          ${WHITE}│${NC}"
+    echo -e "${WHITE}│${NC}  ${YELLOW}8.${NC} 🔧 Database Utilities                                      ${WHITE}│${NC}"
+    echo -e "${WHITE}├────────────────────────────────────────────────────────────────┤${NC}"
+    echo -e "${WHITE}│${NC}  ${RED}0.${NC} ❌ Exit                                                    ${WHITE}│${NC}"
+    echo -e "${WHITE}└────────────────────────────────────────────────────────────────┘${NC}"
+    echo ""
+}
+
+check_root() {
+    if [ "$EUID" -ne 0 ]; then
+        echo -e "${RED}⚠️  Some operations require root privileges.${NC}"
+        echo -e "${YELLOW}Run with: sudo wx-attach${NC}"
+        return 1
+    fi
+    return 0
+}
+
+check_installation() {
+    if [ ! -d "$INSTALL_DIR" ]; then
+        echo -e "${RED}❌ Bot not installed at $INSTALL_DIR${NC}"
+        echo -e "${YELLOW}Please run deploy.sh first.${NC}"
+        exit 1
+    fi
+}
+
+load_env() {
+    if [ -f "$ENV_FILE" ]; then
+        export $(grep -v '^#' "$ENV_FILE" | xargs)
+    fi
+}
+
+# ============================================================================
+# Bot Control Functions
+# ============================================================================
+
+start_bot() {
+    echo -e "${YELLOW}Starting CODM Bot...${NC}"
+    if systemctl is-active --quiet $SERVICE_NAME; then
+        echo -e "${YELLOW}⚠️  Bot is already running.${NC}"
+    else
+        sudo systemctl start $SERVICE_NAME
+        sleep 2
+        if systemctl is-active --quiet $SERVICE_NAME; then
+            echo -e "${GREEN}✅ Bot started successfully!${NC}"
+        else
+            echo -e "${RED}❌ Failed to start bot.${NC}"
+            echo -e "${YELLOW}Check logs: journalctl -u $SERVICE_NAME -n 50${NC}"
+        fi
+    fi
+}
+
+stop_bot() {
+    echo -e "${YELLOW}Stopping CODM Bot...${NC}"
+    if systemctl is-active --quiet $SERVICE_NAME; then
+        sudo systemctl stop $SERVICE_NAME
+        sleep 2
+        if ! systemctl is-active --quiet $SERVICE_NAME; then
+            echo -e "${GREEN}✅ Bot stopped successfully!${NC}"
+        else
+            echo -e "${RED}❌ Failed to stop bot.${NC}"
+        fi
+    else
+        echo -e "${YELLOW}⚠️  Bot is not running.${NC}"
+    fi
+}
+
+restart_bot() {
+    echo -e "${YELLOW}Restarting CODM Bot...${NC}"
+    sudo systemctl restart $SERVICE_NAME
+    sleep 3
+    if systemctl is-active --quiet $SERVICE_NAME; then
+        echo -e "${GREEN}✅ Bot restarted successfully!${NC}"
+    else
+        echo -e "${RED}❌ Failed to restart bot.${NC}"
+        echo -e "${YELLOW}Check logs: journalctl -u $SERVICE_NAME -n 50${NC}"
+    fi
+}
+
+# ============================================================================
+# Status Functions
+# ============================================================================
+
+show_status() {
+    print_header
+    echo -e "${WHITE}╔════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${WHITE}║                     📊  System Status                          ║${NC}"
+    echo -e "${WHITE}╠════════════════════════════════════════════════════════════════╣${NC}"
+    
+    # Bot Service Status
+    if systemctl is-active --quiet $SERVICE_NAME; then
+        echo -e "${WHITE}║${NC}  Bot Service:     ${GREEN}● Running${NC}                                   ${WHITE}║${NC}"
+    else
+        echo -e "${WHITE}║${NC}  Bot Service:     ${RED}● Stopped${NC}                                   ${WHITE}║${NC}"
+    fi
+    
+    # Uptime
+    if systemctl is-active --quiet $SERVICE_NAME; then
+        UPTIME=$(systemctl show $SERVICE_NAME --property=ActiveEnterTimestamp --value 2>/dev/null)
+        if [ ! -z "$UPTIME" ]; then
+            echo -e "${WHITE}║${NC}  Started At:      ${CYAN}$UPTIME${NC}"
+        fi
+    fi
+    
+    echo -e "${WHITE}╠════════════════════════════════════════════════════════════════╣${NC}"
+    
+    # Database Connection
+    load_env
+    if [ ! -z "$DATABASE_URL" ]; then
+        # Test PostgreSQL connection
+        if $VENV_PYTHON -c "
+import psycopg
+try:
+    conn = psycopg.connect('$DATABASE_URL', connect_timeout=5)
+    conn.close()
+    exit(0)
+except:
+    exit(1)
+" 2>/dev/null; then
+            echo -e "${WHITE}║${NC}  Database:        ${GREEN}● Connected${NC}                                 ${WHITE}║${NC}"
+        else
+            echo -e "${WHITE}║${NC}  Database:        ${RED}● Disconnected${NC}                              ${WHITE}║${NC}"
+        fi
+    else
+        echo -e "${WHITE}║${NC}  Database:        ${YELLOW}● Not Configured${NC}                            ${WHITE}║${NC}"
+    fi
+    
+    # Telegram API
+    if [ ! -z "$BOT_TOKEN" ]; then
+        # Test Telegram API
+        TELEGRAM_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://api.telegram.org/bot$BOT_TOKEN/getMe" 2>/dev/null)
+        if [ "$TELEGRAM_STATUS" == "200" ]; then
+            echo -e "${WHITE}║${NC}  Telegram API:    ${GREEN}● Connected${NC}                                 ${WHITE}║${NC}"
+        else
+            echo -e "${WHITE}║${NC}  Telegram API:    ${RED}● Error ($TELEGRAM_STATUS)${NC}                              ${WHITE}║${NC}"
+        fi
+    else
+        echo -e "${WHITE}║${NC}  Telegram API:    ${YELLOW}● Not Configured${NC}                            ${WHITE}║${NC}"
+    fi
+    
+    echo -e "${WHITE}╠════════════════════════════════════════════════════════════════╣${NC}"
+    
+    # System Resources
+    MEM_USAGE=$(free -m | awk 'NR==2{printf "%.1f%%", $3*100/$2 }')
+    CPU_USAGE=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)
+    DISK_USAGE=$(df -h "$INSTALL_DIR" 2>/dev/null | awk 'NR==2{print $5}')
+    
+    echo -e "${WHITE}║${NC}  Memory Usage:    ${CYAN}$MEM_USAGE${NC}"
+    echo -e "${WHITE}║${NC}  CPU Usage:       ${CYAN}${CPU_USAGE}%${NC}"
+    echo -e "${WHITE}║${NC}  Disk Usage:      ${CYAN}$DISK_USAGE${NC}"
+    
+    echo -e "${WHITE}╚════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+}
+
+view_logs() {
+    echo -e "${YELLOW}Showing last 50 log lines (Ctrl+C to exit live mode)...${NC}"
+    echo ""
+    sudo journalctl -u $SERVICE_NAME -n 50 -f
+}
+
+# ============================================================================
+# Admin Management
+# ============================================================================
+
+admin_menu() {
+    while true; do
+        print_header
+        echo -e "${WHITE}┌────────────────────────────────────────────────────────────────┐${NC}"
+        echo -e "${WHITE}│${NC}               ${YELLOW}👤 Admin Management${NC}                            ${WHITE}│${NC}"
+        echo -e "${WHITE}├────────────────────────────────────────────────────────────────┤${NC}"
+        echo -e "${WHITE}│${NC}  ${GREEN}1.${NC} List All Admins                                          ${WHITE}│${NC}"
+        echo -e "${WHITE}│${NC}  ${GREEN}2.${NC} Add New Admin                                            ${WHITE}│${NC}"
+        echo -e "${WHITE}│${NC}  ${GREEN}3.${NC} Remove Admin                                             ${WHITE}│${NC}"
+        echo -e "${WHITE}│${NC}  ${GREEN}4.${NC} Change Super Admin ID                                    ${WHITE}│${NC}"
+        echo -e "${WHITE}├────────────────────────────────────────────────────────────────┤${NC}"
+        echo -e "${WHITE}│${NC}  ${RED}0.${NC} Back to Main Menu                                        ${WHITE}│${NC}"
+        echo -e "${WHITE}└────────────────────────────────────────────────────────────────┘${NC}"
+        echo ""
+        
+        read -p "Select option: " admin_choice
+        
+        case $admin_choice in
+            1) list_admins ;;
+            2) add_admin ;;
+            3) remove_admin ;;
+            4) change_super_admin ;;
+            0) break ;;
+            *) echo -e "${RED}Invalid option${NC}" ;;
+        esac
+        
+        echo ""
+        read -p "Press Enter to continue..."
+    done
+}
+
+list_admins() {
+    load_env
+    echo -e "\n${CYAN}📋 Current Admins:${NC}\n"
+    
+    $VENV_PYTHON -c "
+import psycopg
+try:
+    conn = psycopg.connect('$DATABASE_URL')
+    cur = conn.cursor()
+    cur.execute('''
+        SELECT a.user_id, u.username, u.first_name, a.is_active, a.created_at
+        FROM admins a
+        LEFT JOIN users u ON a.user_id = u.user_id
+        ORDER BY a.created_at
+    ''')
+    rows = cur.fetchall()
+    if rows:
+        print(f'{'User ID':<15} {'Username':<20} {'Name':<20} {'Active':<8}')
+        print('-' * 65)
+        for row in rows:
+            uid, username, name, active, _ = row
+            username = username or 'N/A'
+            name = name or 'N/A'
+            status = '✅' if active else '❌'
+            print(f'{uid:<15} {username:<20} {name:<20} {status}')
+    else:
+        print('No admins found.')
+    conn.close()
+except Exception as e:
+    print(f'Error: {e}')
+" 2>/dev/null
+    
+    echo ""
+    echo -e "${YELLOW}Super Admin ID:${NC} $SUPER_ADMIN_ID"
+}
+
+add_admin() {
+    load_env
+    echo -e "\n${CYAN}➕ Add New Admin${NC}\n"
+    
+    read -p "Enter Telegram User ID: " new_admin_id
+    
+    if ! [[ "$new_admin_id" =~ ^[0-9]+$ ]]; then
+        echo -e "${RED}❌ Invalid User ID. Must be a number.${NC}"
+        return
+    fi
+    
+    $VENV_PYTHON -c "
+import psycopg
+try:
+    conn = psycopg.connect('$DATABASE_URL')
+    cur = conn.cursor()
+    # Insert into users if not exists
+    cur.execute('INSERT INTO users (user_id) VALUES (%s) ON CONFLICT DO NOTHING', ($new_admin_id,))
+    # Insert into admins
+    cur.execute('''
+        INSERT INTO admins (user_id, is_active) 
+        VALUES (%s, TRUE) 
+        ON CONFLICT (user_id) DO UPDATE SET is_active = TRUE
+    ''', ($new_admin_id,))
+    # Assign admin role
+    cur.execute('SELECT id FROM roles WHERE name = %s', ('admin',))
+    role = cur.fetchone()
+    if role:
+        cur.execute('''
+            INSERT INTO admin_roles (user_id, role_id) 
+            VALUES (%s, %s) 
+            ON CONFLICT DO NOTHING
+        ''', ($new_admin_id, role[0]))
+    conn.commit()
+    conn.close()
+    print('✅ Admin added successfully!')
+except Exception as e:
+    print(f'❌ Error: {e}')
+" 2>/dev/null
+}
+
+remove_admin() {
+    load_env
+    echo -e "\n${CYAN}➖ Remove Admin${NC}\n"
+    
+    list_admins
+    echo ""
+    read -p "Enter User ID to remove: " remove_id
+    
+    if ! [[ "$remove_id" =~ ^[0-9]+$ ]]; then
+        echo -e "${RED}❌ Invalid User ID.${NC}"
+        return
+    fi
+    
+    if [ "$remove_id" == "$SUPER_ADMIN_ID" ]; then
+        echo -e "${RED}❌ Cannot remove Super Admin!${NC}"
+        return
+    fi
+    
+    $VENV_PYTHON -c "
+import psycopg
+try:
+    conn = psycopg.connect('$DATABASE_URL')
+    cur = conn.cursor()
+    cur.execute('UPDATE admins SET is_active = FALSE WHERE user_id = %s', ($remove_id,))
+    cur.execute('DELETE FROM admin_roles WHERE user_id = %s', ($remove_id,))
+    conn.commit()
+    conn.close()
+    print('✅ Admin removed successfully!')
+except Exception as e:
+    print(f'❌ Error: {e}')
+" 2>/dev/null
+}
+
+change_super_admin() {
+    load_env
+    echo -e "\n${CYAN}🔄 Change Super Admin ID${NC}\n"
+    echo -e "Current Super Admin ID: ${YELLOW}$SUPER_ADMIN_ID${NC}"
+    echo ""
+    
+    read -p "Enter new Super Admin ID: " new_super_id
+    
+    if ! [[ "$new_super_id" =~ ^[0-9]+$ ]]; then
+        echo -e "${RED}❌ Invalid User ID.${NC}"
+        return
+    fi
+    
+    # Update .env file
+    sed -i "s/^SUPER_ADMIN_ID=.*/SUPER_ADMIN_ID=$new_super_id/" "$ENV_FILE"
+    
+    # Add to database
+    $VENV_PYTHON -c "
+import psycopg
+try:
+    conn = psycopg.connect('$DATABASE_URL')
+    cur = conn.cursor()
+    cur.execute('INSERT INTO users (user_id) VALUES (%s) ON CONFLICT DO NOTHING', ($new_super_id,))
+    cur.execute('''
+        INSERT INTO admins (user_id, is_active) 
+        VALUES (%s, TRUE) 
+        ON CONFLICT (user_id) DO UPDATE SET is_active = TRUE
+    ''', ($new_super_id,))
+    cur.execute('SELECT id FROM roles WHERE name = %s', ('super_admin',))
+    role = cur.fetchone()
+    if role:
+        cur.execute('''
+            INSERT INTO admin_roles (user_id, role_id) 
+            VALUES (%s, %s) 
+            ON CONFLICT DO NOTHING
+        ''', ($new_super_id, role[0]))
+    conn.commit()
+    conn.close()
+    print('✅ Super Admin ID updated!')
+except Exception as e:
+    print(f'❌ Error: {e}')
+" 2>/dev/null
+    
+    echo -e "${YELLOW}⚠️  Restart the bot for changes to take effect.${NC}"
+}
+
+# ============================================================================
+# Configuration Menu
+# ============================================================================
+
+config_menu() {
+    while true; do
+        print_header
+        echo -e "${WHITE}┌────────────────────────────────────────────────────────────────┐${NC}"
+        echo -e "${WHITE}│${NC}               ${YELLOW}⚙️  Configuration${NC}                               ${WHITE}│${NC}"
+        echo -e "${WHITE}├────────────────────────────────────────────────────────────────┤${NC}"
+        echo -e "${WHITE}│${NC}  ${GREEN}1.${NC} View Current Configuration                               ${WHITE}│${NC}"
+        echo -e "${WHITE}│${NC}  ${GREEN}2.${NC} Edit Bot Token                                           ${WHITE}│${NC}"
+        echo -e "${WHITE}│${NC}  ${GREEN}3.${NC} Edit Database URL                                        ${WHITE}│${NC}"
+        echo -e "${WHITE}│${NC}  ${GREEN}4.${NC} Edit Full .env File                                      ${WHITE}│${NC}"
+        echo -e "${WHITE}├────────────────────────────────────────────────────────────────┤${NC}"
+        echo -e "${WHITE}│${NC}  ${RED}0.${NC} Back to Main Menu                                        ${WHITE}│${NC}"
+        echo -e "${WHITE}└────────────────────────────────────────────────────────────────┘${NC}"
+        echo ""
+        
+        read -p "Select option: " config_choice
+        
+        case $config_choice in
+            1) view_config ;;
+            2) edit_bot_token ;;
+            3) edit_database_url ;;
+            4) edit_env_file ;;
+            0) break ;;
+            *) echo -e "${RED}Invalid option${NC}" ;;
+        esac
+        
+        echo ""
+        read -p "Press Enter to continue..."
+    done
+}
+
+view_config() {
+    echo -e "\n${CYAN}📋 Current Configuration:${NC}\n"
+    
+    if [ -f "$ENV_FILE" ]; then
+        # Show config with sensitive data masked
+        while IFS='=' read -r key value; do
+            if [[ ! "$key" =~ ^# ]] && [[ ! -z "$key" ]]; then
+                if [[ "$key" == "BOT_TOKEN" ]] || [[ "$key" == "DB_PASSWORD" ]] || [[ "$key" =~ PASSWORD ]]; then
+                    echo -e "${WHITE}$key${NC}=${YELLOW}********${NC}"
+                else
+                    echo -e "${WHITE}$key${NC}=${CYAN}$value${NC}"
+                fi
+            fi
+        done < "$ENV_FILE"
+    else
+        echo -e "${RED}❌ .env file not found${NC}"
+    fi
+}
+
+edit_bot_token() {
+    load_env
+    echo -e "\n${CYAN}🔑 Edit Bot Token${NC}\n"
+    echo -e "Current Token: ${YELLOW}${BOT_TOKEN:0:10}...${NC}"
+    echo ""
+    
+    read -p "Enter new Bot Token (or press Enter to cancel): " new_token
+    
+    if [ ! -z "$new_token" ]; then
+        sed -i "s/^BOT_TOKEN=.*/BOT_TOKEN=$new_token/" "$ENV_FILE"
+        echo -e "${GREEN}✅ Bot Token updated!${NC}"
+        echo -e "${YELLOW}⚠️  Restart the bot for changes to take effect.${NC}"
+    else
+        echo -e "${YELLOW}Cancelled.${NC}"
+    fi
+}
+
+edit_database_url() {
+    load_env
+    echo -e "\n${CYAN}🗄️ Edit Database URL${NC}\n"
+    echo -e "Current URL: ${YELLOW}${DATABASE_URL:0:30}...${NC}"
+    echo ""
+    
+    read -p "Enter new Database URL (or press Enter to cancel): " new_url
+    
+    if [ ! -z "$new_url" ]; then
+        # Escape special characters for sed
+        escaped_url=$(printf '%s\n' "$new_url" | sed -e 's/[\/&]/\\&/g')
+        sed -i "s/^DATABASE_URL=.*/DATABASE_URL=$escaped_url/" "$ENV_FILE"
+        echo -e "${GREEN}✅ Database URL updated!${NC}"
+        echo -e "${YELLOW}⚠️  Restart the bot for changes to take effect.${NC}"
+    else
+        echo -e "${YELLOW}Cancelled.${NC}"
+    fi
+}
+
+edit_env_file() {
+    if command -v nano &> /dev/null; then
+        sudo nano "$ENV_FILE"
+    elif command -v vim &> /dev/null; then
+        sudo vim "$ENV_FILE"
+    else
+        echo -e "${RED}❌ No text editor found (nano/vim)${NC}"
+    fi
+}
+
+# ============================================================================
+# Database Utilities
+# ============================================================================
+
+db_menu() {
+    while true; do
+        print_header
+        echo -e "${WHITE}┌────────────────────────────────────────────────────────────────┐${NC}"
+        echo -e "${WHITE}│${NC}               ${YELLOW}🔧 Database Utilities${NC}                          ${WHITE}│${NC}"
+        echo -e "${WHITE}├────────────────────────────────────────────────────────────────┤${NC}"
+        echo -e "${WHITE}│${NC}  ${GREEN}1.${NC} Test Database Connection                                 ${WHITE}│${NC}"
+        echo -e "${WHITE}│${NC}  ${GREEN}2.${NC} Show Database Statistics                                 ${WHITE}│${NC}"
+        echo -e "${WHITE}│${NC}  ${GREEN}3.${NC} Backup Database                                          ${WHITE}│${NC}"
+        echo -e "${WHITE}│${NC}  ${GREEN}4.${NC} Reset Database (⚠️ DANGEROUS)                             ${WHITE}│${NC}"
+        echo -e "${WHITE}├────────────────────────────────────────────────────────────────┤${NC}"
+        echo -e "${WHITE}│${NC}  ${RED}0.${NC} Back to Main Menu                                        ${WHITE}│${NC}"
+        echo -e "${WHITE}└────────────────────────────────────────────────────────────────┘${NC}"
+        echo ""
+        
+        read -p "Select option: " db_choice
+        
+        case $db_choice in
+            1) test_db_connection ;;
+            2) show_db_stats ;;
+            3) backup_database ;;
+            4) reset_database ;;
+            0) break ;;
+            *) echo -e "${RED}Invalid option${NC}" ;;
+        esac
+        
+        echo ""
+        read -p "Press Enter to continue..."
+    done
+}
+
+test_db_connection() {
+    load_env
+    echo -e "\n${CYAN}🔌 Testing Database Connection...${NC}\n"
+    
+    $VENV_PYTHON -c "
+import psycopg
+import time
+try:
+    start = time.time()
+    conn = psycopg.connect('$DATABASE_URL', connect_timeout=5)
+    elapsed = (time.time() - start) * 1000
+    cur = conn.cursor()
+    cur.execute('SELECT version()')
+    version = cur.fetchone()[0]
+    cur.execute('SELECT COUNT(*) FROM pg_tables WHERE schemaname = %s', ('public',))
+    tables = cur.fetchone()[0]
+    conn.close()
+    print(f'✅ Connection successful! ({elapsed:.1f}ms)')
+    print(f'   PostgreSQL: {version.split(\",\")[0]}')
+    print(f'   Tables: {tables}')
+except Exception as e:
+    print(f'❌ Connection failed: {e}')
+" 2>/dev/null
+}
+
+show_db_stats() {
+    load_env
+    echo -e "\n${CYAN}📊 Database Statistics:${NC}\n"
+    
+    $VENV_PYTHON -c "
+import psycopg
+try:
+    conn = psycopg.connect('$DATABASE_URL')
+    cur = conn.cursor()
+    
+    stats = {}
+    
+    # Count records in main tables
+    tables = ['users', 'admins', 'weapons', 'attachments', 'user_attachments', 'tickets']
+    for table in tables:
+        try:
+            cur.execute(f'SELECT COUNT(*) FROM {table}')
+            stats[table] = cur.fetchone()[0]
+        except:
+            stats[table] = 'N/A'
+    
+    # Database size
+    cur.execute(\"SELECT pg_size_pretty(pg_database_size(current_database()))\")
+    db_size = cur.fetchone()[0]
+    
+    conn.close()
+    
+    print(f'Database Size: {db_size}')
+    print('')
+    print(f'{'Table':<20} {'Records':<10}')
+    print('-' * 30)
+    for table, count in stats.items():
+        print(f'{table:<20} {count:<10}')
+except Exception as e:
+    print(f'❌ Error: {e}')
+" 2>/dev/null
+}
+
+backup_database() {
+    load_env
+    echo -e "\n${CYAN}💾 Backup Database${NC}\n"
+    
+    BACKUP_DIR="$INSTALL_DIR/backups"
+    mkdir -p "$BACKUP_DIR"
+    
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    BACKUP_FILE="$BACKUP_DIR/backup_$TIMESTAMP.sql"
+    
+    # Extract connection details from DATABASE_URL
+    if [[ "$DATABASE_URL" =~ postgresql://([^:]+):([^@]+)@([^/]+)/(.+) ]]; then
+        DB_USER="${BASH_REMATCH[1]}"
+        DB_PASS="${BASH_REMATCH[2]}"
+        DB_HOST="${BASH_REMATCH[3]}"
+        DB_NAME="${BASH_REMATCH[4]}"
+        
+        echo -e "${YELLOW}Creating backup...${NC}"
+        PGPASSWORD="$DB_PASS" pg_dump -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -F c -f "$BACKUP_FILE" 2>/dev/null
+        
+        if [ -f "$BACKUP_FILE" ]; then
+            SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
+            echo -e "${GREEN}✅ Backup created: $BACKUP_FILE ($SIZE)${NC}"
+        else
+            echo -e "${RED}❌ Backup failed${NC}"
+        fi
+    else
+        echo -e "${RED}❌ Could not parse DATABASE_URL${NC}"
+    fi
+}
+
+reset_database() {
+    echo -e "\n${RED}⚠️  WARNING: This will DELETE ALL DATA!${NC}\n"
+    
+    read -p "Are you sure? Type 'RESET' to confirm: " confirm
+    
+    if [ "$confirm" == "RESET" ]; then
+        load_env
+        echo -e "${YELLOW}Resetting database...${NC}"
+        
+        # Run setup script
+        if [ -f "$INSTALL_DIR/scripts/setup_database.sql" ]; then
+            # Extract connection details
+            if [[ "$DATABASE_URL" =~ postgresql://([^:]+):([^@]+)@([^/]+)/(.+) ]]; then
+                DB_USER="${BASH_REMATCH[1]}"
+                DB_PASS="${BASH_REMATCH[2]}"
+                DB_HOST="${BASH_REMATCH[3]}"
+                DB_NAME="${BASH_REMATCH[4]}"
+                
+                PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -f "$INSTALL_DIR/scripts/setup_database.sql" 2>/dev/null
+                echo -e "${GREEN}✅ Database reset complete!${NC}"
+            fi
+        else
+            echo -e "${RED}❌ Setup script not found${NC}"
+        fi
+    else
+        echo -e "${YELLOW}Cancelled.${NC}"
+    fi
+}
+
+# ============================================================================
+# Command Line Arguments
+# ============================================================================
+
+handle_command() {
+    case $1 in
+        start)
+            check_installation
+            start_bot
+            ;;
+        stop)
+            check_installation
+            stop_bot
+            ;;
+        restart)
+            check_installation
+            restart_bot
+            ;;
+        status)
+            check_installation
+            show_status
+            ;;
+        logs)
+            check_installation
+            view_logs
+            ;;
+        help|--help|-h)
+            echo "CODM Bot Manager - Usage:"
+            echo "  wx-attach           - Interactive menu"
+            echo "  wx-attach start     - Start bot"
+            echo "  wx-attach stop      - Stop bot"
+            echo "  wx-attach restart   - Restart bot"
+            echo "  wx-attach status    - Show status"
+            echo "  wx-attach logs      - View logs"
+            ;;
+        *)
+            echo -e "${RED}Unknown command: $1${NC}"
+            echo "Run 'wx-attach help' for usage"
+            exit 1
+            ;;
+    esac
+}
+
+# ============================================================================
+# Main Interactive Menu
+# ============================================================================
+
+main_menu() {
+    check_installation
+    
+    while true; do
+        print_header
+        print_menu
+        
+        read -p "Select option: " choice
+        
+        case $choice in
+            1) start_bot ;;
+            2) stop_bot ;;
+            3) restart_bot ;;
+            4) show_status ;;
+            5) view_logs ;;
+            6) admin_menu ;;
+            7) config_menu ;;
+            8) db_menu ;;
+            0) 
+                echo -e "${GREEN}Goodbye! 👋${NC}"
+                exit 0
+                ;;
+            *)
+                echo -e "${RED}Invalid option. Please try again.${NC}"
+                ;;
+        esac
+        
+        echo ""
+        read -p "Press Enter to continue..."
+    done
+}
+
+# ============================================================================
+# Entry Point
+# ============================================================================
+
+if [ $# -gt 0 ]; then
+    handle_command "$1"
+else
+    main_menu
+fi

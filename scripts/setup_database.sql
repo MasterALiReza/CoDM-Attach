@@ -9,19 +9,11 @@
 
 -- STEP 1: Create User (if not exists)
 -- Note: Run this as postgres superuser
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'codm_bot_user') THEN
-        CREATE ROLE codm_bot_user WITH LOGIN PASSWORD 'CoDM_Secure_2025!@#';
-        RAISE NOTICE 'User codm_bot_user created';
-    ELSE
-        RAISE NOTICE 'User codm_bot_user already exists';
-    END IF;
-END
-$$;
+-- Password is set by deploy.sh script dynamically
+-- DO NOT hardcode password here for security
 
--- Grant necessary privileges
-ALTER ROLE codm_bot_user WITH CREATEDB;
+-- Grant necessary privileges (user created by deploy.sh)
+-- ALTER ROLE codm_bot_user WITH CREATEDB;
 
 -- ============================================================================
 -- STEP 2: Extensions (must be in the database)
@@ -274,6 +266,15 @@ CREATE TABLE IF NOT EXISTS faqs (
 CREATE INDEX IF NOT EXISTS idx_faqs_category ON faqs (category) WHERE is_active = TRUE;
 CREATE INDEX IF NOT EXISTS idx_faqs_language ON faqs (language) WHERE is_active = TRUE;
 
+-- User FAQ votes (for tracking helpful/not helpful votes)
+CREATE TABLE IF NOT EXISTS user_faq_votes (
+    user_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    faq_id INTEGER NOT NULL REFERENCES faqs(id) ON DELETE CASCADE,
+    rating SMALLINT CHECK (rating IN (-1, 1)),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, faq_id)
+);
+
 CREATE TABLE IF NOT EXISTS feedback (
     id SERIAL PRIMARY KEY,
     user_id BIGINT REFERENCES users(user_id) ON DELETE SET NULL,
@@ -510,11 +511,37 @@ ON CONFLICT DO NOTHING;
 INSERT INTO ua_stats_cache (id) VALUES (1) ON CONFLICT DO NOTHING;
 
 -- ============================================================================
--- STEP 14: Grant Permissions
+-- STEP 14: Grant Permissions & Ownership
 -- ============================================================================
 
+-- Grant all privileges
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO codm_bot_user;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO codm_bot_user;
+GRANT USAGE ON SCHEMA public TO codm_bot_user;
+
+-- Transfer ownership of all tables to codm_bot_user
+DO $$
+DECLARE
+    tbl RECORD;
+BEGIN
+    FOR tbl IN SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+    LOOP
+        EXECUTE format('ALTER TABLE %I OWNER TO codm_bot_user', tbl.tablename);
+    END LOOP;
+END
+$$;
+
+-- Transfer ownership of all sequences to codm_bot_user
+DO $$
+DECLARE
+    seq RECORD;
+BEGIN
+    FOR seq IN SELECT sequencename FROM pg_sequences WHERE schemaname = 'public'
+    LOOP
+        EXECUTE format('ALTER SEQUENCE %I OWNER TO codm_bot_user', seq.sequencename);
+    END LOOP;
+END
+$$;
 
 -- ============================================================================
 -- END OF SETUP

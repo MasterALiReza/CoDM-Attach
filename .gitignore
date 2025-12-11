@@ -68,3 +68,12 @@ PUSH_INSTRUCTIONS.md
 status_report.md
 upload_batch_*.json
 upload_batch_*.jsonl
+
+# Reports (generated)
+reports/
+
+# Archive (old files)
+archive/
+
+# Test outputs
+test_outputs/

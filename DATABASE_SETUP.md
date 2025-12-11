@@ -1,77 +1,118 @@
-# Database Setup - Quick Guide
+# Database Setup Guide
 
 ## 🚀 Quick Setup (Recommended)
 
-```bash
-cd "f:\IDE Projects\Cursor Attach Bopt\codm-bot-modular"
-python scripts/setup_database.py --drop-existing
-```
-
-این دستور:
-- Database قدیمی را حذف می‌کند
-- Database جدید می‌سازد: `codm_attachments_db`
-- User جدید می‌سازد: `codm_bot_user`
-- تمام tables و indexes را می‌سازد
-- Data اولیه را وارد می‌کند
-- فایل .env را به‌روز می‌کند
-
-## 📋 Database Details
-
-```
-Database: codm_attachments_db
-User: codm_bot_user
-Password: CoDM_Secure_2025!@#
-Host: localhost
-Port: 5432
-```
-
-## 📊 What Gets Created
-
-- ✅ 40+ tables
-- ✅ 30+ indexes  
-- ✅ 2 extensions (pg_trgm, unaccent)
-- ✅ 8 weapon categories
-- ✅ 4 default roles
-- ✅ All constraints & foreign keys
-
-## 🔧 Manual Setup (Alternative)
-
-If the Python script doesn't work:
+The database is automatically set up when you run `deploy.sh`:
 
 ```bash
-# 1. Connect as postgres
-psql -U postgres
+sudo ./deploy.sh
+```
 
-# 2. Create database
-CREATE DATABASE codm_attachments_db OWNER codm_bot_user ENCODING 'UTF8';
-\c codm_attachments_db
+This will:
+- Create PostgreSQL database and user with secure random password
+- Set up all tables, indexes, and constraints
+- Configure proper ownership and permissions
+- Add the super admin to the database
 
-# 3. Run setup script
-\i scripts/setup_database.sql
+## 📋 Manual Setup (Alternative)
 
-# 4. Exit
+If you need to set up the database manually:
+
+### 1. Create Database User
+
+```bash
+# Connect as postgres superuser
+sudo -u postgres psql
+
+# Create user with password
+CREATE USER codm_bot_user WITH PASSWORD 'your_secure_password';
+ALTER USER codm_bot_user WITH CREATEDB;
+
+# Exit
 \q
 ```
 
-## ✅ Verify Setup
-
-```python
-python -c "from core.database.database_pg import DatabasePostgres; db = DatabasePostgres(); print('✅ Connected!')"
-```
-
-## 📝 Update .env
-
-The setup script automatically updates `.env`, but verify:
-
-```env
-DATABASE_URL=postgresql://codm_bot_user:CoDM_Secure_2025!@#@localhost:5432/codm_attachments_db
-DB_NAME=codm_attachments_db
-DB_USER=codm_bot_user
-DB_PASSWORD=CoDM_Secure_2025!@#
-```
-
-## 🎯 Ready!
+### 2. Create Database
 
 ```bash
-python main.py
+sudo -u postgres psql
+
+CREATE DATABASE codm_bot_db OWNER codm_bot_user ENCODING 'UTF8';
+GRANT ALL PRIVILEGES ON DATABASE codm_bot_db TO codm_bot_user;
+
+\q
 ```
+
+### 3. Run Schema Script
+
+```bash
+# Connect to the new database and run setup
+PGPASSWORD='your_secure_password' psql -h localhost -U codm_bot_user -d codm_bot_db -f scripts/setup_database.sql
+```
+
+### 4. Configure Environment
+
+Update your `.env` file:
+
+```env
+DATABASE_URL=postgresql://codm_bot_user:your_secure_password@localhost:5432/codm_bot_db
+```
+
+## 📊 Database Schema
+
+The setup creates:
+
+| Category | Count | Description |
+|----------|-------|-------------|
+| Tables | 40+ | Core data tables |
+| Indexes | 30+ | Performance indexes |
+| Extensions | 2 | pg_trgm, unaccent |
+| Roles | 4 | super_admin, admin, moderator, support |
+| Categories | 8 | Weapon categories |
+
+### Key Tables
+
+- `users` - Bot users
+- `admins` - Admin accounts
+- `weapons` - Weapon list
+- `attachments` - Weapon attachments
+- `user_attachments` - User submissions
+- `tickets` - Support tickets
+- `faqs` - FAQ entries
+
+## ✅ Verify Setup
+
+Run the health check:
+
+```bash
+python scripts/health_check.py
+```
+
+Or test connection manually:
+
+```bash
+cd /opt/codm-bot
+venv/bin/python -c "from core.database.database_pg import DatabasePostgres; db = DatabasePostgres(); print('✅ Connected!')"
+```
+
+## 🔧 Management
+
+Use the `wx-attach` CLI tool for database management:
+
+```bash
+wx-attach
+# Then select option 8 (Database Utilities)
+```
+
+Available utilities:
+- Test connection
+- View statistics
+- Backup database
+- Reset database
+
+## 🔒 Security Notes
+
+1. **Never** commit `.env` file to version control
+2. Use strong, unique passwords
+3. Restrict database access to localhost only
+4. Regular backups are stored in `/opt/codm-bot/backups/`
