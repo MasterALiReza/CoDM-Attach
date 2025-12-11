@@ -141,27 +141,30 @@ class CODMAttachmentsBot:
         except Exception as e:
             logger.warning(f"Failed to start cache cleanup task: {e}")
     
-    async def post_shutdown(self, application):
-        """تابع اجرایی بعد از shutdown application"""
-        logger.info("Application shutdown hook called")
-        if not self.is_shutting_down:
-            await self.cleanup()
-        # Stop scheduler gracefully
-        try:
-            if hasattr(self, 'notification_scheduler') and self.notification_scheduler:
-                await self.notification_scheduler.stop()
-        except Exception as e:
-            logger.warning(f"Failed to stop notification scheduler: {e}")
-        
+    async def cleanup(self):
+        """
+        پاکسازی منابع و بستن کانکشن‌ها
+        این متد باید idempotent باشد (چند بار صدا زدنش مشکلی ایجاد نکند)
+        """
+        if self.is_shutting_down:
+            return
+            
         self.is_shutting_down = True
-        logger.info("🛑 Initiating graceful shutdown...")
+        logger.info("🛑 Initiating graceful cleanup...")
         
         try:
-            # 1. Flush pending notifications
-            logger.info("📤 Flushing pending notifications...")
+            # 1. Stop scheduler
+            if hasattr(self, 'notification_scheduler') and self.notification_scheduler:
+                try:
+                    await self.notification_scheduler.stop()
+                    logger.info("✅ Notification scheduler stopped")
+                except Exception as e:
+                    logger.warning(f"Failed to stop notification scheduler: {e}")
+
+            # 2. Flush pending notifications
             if hasattr(self, 'notification_manager') and self.notification_manager:
                 try:
-                    # Process any pending notifications
+                    logger.info("📤 Flushing pending notifications...")
                     await asyncio.wait_for(
                         self.notification_manager.process_pending_notifications(),
                         timeout=5.0
@@ -172,31 +175,33 @@ class CODMAttachmentsBot:
                 except Exception as e:
                     logger.error(f"❌ Error flushing notifications: {e}")
             
-            # 2. Close database connections
-            logger.info("💾 Closing database connections...")
+            # 3. Close database connections
             if hasattr(self, 'db') and self.db:
                 try:
-                    # Close database pool via adapter
                     if hasattr(self.db, 'close'):
                         self.db.close()
                         logger.info("✅ Database pool closed")
                 except Exception as e:
                     logger.error(f"❌ Error closing database: {e}")
             
-            # 3. Save any pending state
-            logger.info("💾 Saving state...")
-            # Add any state saving logic here if needed
-            
-            # 4. Stop the application
+            # 4. Stop the application if running
             if self.application and self.application.running:
-                logger.info("🛑 Stopping application...")
-                await self.application.stop()
-                logger.info("✅ Application stopped")
+                try:
+                    logger.info("🛑 Stopping application...")
+                    await self.application.stop()
+                    logger.info("✅ Application stopped")
+                except Exception as e:
+                    logger.error(f"❌ Error stopping application: {e}")
             
-            logger.info("✅ Graceful shutdown completed")
+            logger.info("✅ Cleanup completed successfully")
             
         except Exception as e:
             logger.error(f"❌ Error during cleanup: {e}")
+
+    async def post_shutdown(self, application):
+        """تابع اجرایی بعد از shutdown application"""
+        logger.info("Application shutdown hook called")
+        await self.cleanup()
     
     def signal_handler(self, signum, frame):
         """Handle shutdown signals"""

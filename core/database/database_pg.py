@@ -268,636 +268,639 @@ class DatabasePostgres:
                     row = cursor.fetchone()
                     return bool(row.get('exists')) if row else False
 
-                # 0) Ensure 'users' table exists
+                # ============================================================================
+                # COMPREHENSIVE SCHEMA CREATION (Self-Healing)
+                # ============================================================================
+                
+                # 1. Extensions
                 try:
-                    cursor.execute("""
-                        CREATE TABLE IF NOT EXISTS users (
-                            user_id BIGINT PRIMARY KEY,
-                            username TEXT,
-                            first_name TEXT,
-                            language TEXT DEFAULT 'fa',
-                            last_seen TIMESTAMP,
-                            created_at TIMESTAMP DEFAULT NOW()
-                        )
-                    """)
+                    cursor.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
+                    cursor.execute("CREATE EXTENSION IF NOT EXISTS unaccent")
                 except Exception as e:
-                    logger.warning(f"ensure_schema(create users) warning: {e}")
+                    logger.warning(f"ensure_schema(extensions) warning: {e}")
 
-                # 0.1) Ensure 'admins' table exists
-                try:
-                    cursor.execute("""
-                        CREATE TABLE IF NOT EXISTS admins (
-                            user_id BIGINT PRIMARY KEY,
-                            username TEXT,
-                            first_name TEXT,
-                            role TEXT DEFAULT 'admin',
-                            created_at TIMESTAMP DEFAULT NOW()
-                        )
-                    """)
-                except Exception as e:
-                    logger.warning(f"ensure_schema(create admins) warning: {e}")
+                # 2. Core Tables (Order matters due to foreign keys)
+                tables_sql = [
+                    # Weapon Categories
+                    """
+                    CREATE TABLE IF NOT EXISTS weapon_categories (
+                        id SERIAL PRIMARY KEY,
+                        name TEXT NOT NULL UNIQUE,
+                        display_name TEXT,
+                        icon TEXT,
+                        sort_order INTEGER DEFAULT 0,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                    )
+                    """,
+                    # Weapons
+                    """
+                    CREATE TABLE IF NOT EXISTS weapons (
+                        id SERIAL PRIMARY KEY,
+                        category_id INTEGER NOT NULL REFERENCES weapon_categories(id) ON DELETE CASCADE,
+                        name TEXT NOT NULL,
+                        display_name TEXT,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMP,
+                        UNIQUE (category_id, name)
+                    )
+                    """,
+                    # Attachments
+                    """
+                    CREATE TABLE IF NOT EXISTS attachments (
+                        id SERIAL PRIMARY KEY,
+                        weapon_id INTEGER NOT NULL REFERENCES weapons(id) ON DELETE CASCADE,
+                        mode TEXT NOT NULL CHECK (mode IN ('br', 'mp')),
+                        code TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        image_file_id TEXT,
+                        is_top BOOLEAN NOT NULL DEFAULT FALSE,
+                        is_season_top BOOLEAN NOT NULL DEFAULT FALSE,
+                        order_index INTEGER,
+                        views_count INTEGER DEFAULT 0,
+                        shares_count INTEGER DEFAULT 0,
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ DEFAULT NOW(),
+                        CONSTRAINT uq_attachment UNIQUE (weapon_id, mode, code)
+                    )
+                    """,
+                    # Users
+                    """
+                    CREATE TABLE IF NOT EXISTS users (
+                        user_id BIGINT PRIMARY KEY,
+                        username TEXT,
+                        first_name TEXT,
+                        last_name TEXT,
+                        language TEXT DEFAULT 'fa' CHECK (language IN ('fa', 'en')),
+                        is_banned BOOLEAN DEFAULT FALSE,
+                        ban_reason TEXT,
+                        banned_until TIMESTAMP,
+                        last_seen TIMESTAMP,
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMP
+                    )
+                    """,
+                    # Roles
+                    """
+                    CREATE TABLE IF NOT EXISTS roles (
+                        id SERIAL PRIMARY KEY,
+                        name TEXT NOT NULL UNIQUE,
+                        display_name TEXT NOT NULL,
+                        description TEXT,
+                        icon TEXT,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMP
+                    )
+                    """,
+                    # Role Permissions
+                    """
+                    CREATE TABLE IF NOT EXISTS role_permissions (
+                        role_id INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+                        permission TEXT NOT NULL,
+                        PRIMARY KEY (role_id, permission)
+                    )
+                    """,
+                    # Admins
+                    """
+                    CREATE TABLE IF NOT EXISTS admins (
+                        user_id BIGINT PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
+                        display_name TEXT,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMP
+                    )
+                    """,
+                    # Admin Roles
+                    """
+                    CREATE TABLE IF NOT EXISTS admin_roles (
+                        user_id BIGINT NOT NULL REFERENCES admins(user_id) ON DELETE CASCADE,
+                        role_id INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+                        assigned_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        assigned_by BIGINT,
+                        PRIMARY KEY (user_id, role_id)
+                    )
+                    """,
+                    # User Attachments
+                    """
+                    CREATE TABLE IF NOT EXISTS user_attachments (
+                        id SERIAL PRIMARY KEY,
+                        user_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+                        weapon_id INTEGER REFERENCES weapons(id) ON DELETE SET NULL,
+                        mode TEXT NOT NULL CHECK (mode IN ('br', 'mp')),
+                        category TEXT,
+                        custom_weapon_name TEXT,
+                        attachment_name TEXT NOT NULL,
+                        description TEXT,
+                        image_file_id TEXT,
+                        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+                        submitted_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        approved_at TIMESTAMP,
+                        approved_by BIGINT REFERENCES admins(user_id),
+                        rejected_at TIMESTAMP,
+                        rejected_by BIGINT REFERENCES admins(user_id),
+                        rejection_reason TEXT,
+                        like_count INTEGER NOT NULL DEFAULT 0,
+                        report_count INTEGER NOT NULL DEFAULT 0,
+                        views_count INTEGER DEFAULT 0
+                    )
+                    """,
+                    # User Submission Stats
+                    """
+                    CREATE TABLE IF NOT EXISTS user_submission_stats (
+                        user_id BIGINT PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
+                        total_submissions INTEGER NOT NULL DEFAULT 0,
+                        approved_count INTEGER NOT NULL DEFAULT 0,
+                        rejected_count INTEGER NOT NULL DEFAULT 0,
+                        pending_count INTEGER NOT NULL DEFAULT 0,
+                        daily_submissions INTEGER NOT NULL DEFAULT 0,
+                        daily_reset_date DATE,
+                        violation_count INTEGER NOT NULL DEFAULT 0,
+                        strike_count REAL NOT NULL DEFAULT 0,
+                        last_submission_at TIMESTAMP,
+                        updated_at TIMESTAMP,
+                        is_banned BOOLEAN NOT NULL DEFAULT FALSE,
+                        banned_reason TEXT,
+                        banned_at TIMESTAMP
+                    )
+                    """,
+                    # User Attachment Engagement
+                    """
+                    CREATE TABLE IF NOT EXISTS user_attachment_engagement (
+                        user_id BIGINT NOT NULL,
+                        attachment_id INTEGER NOT NULL REFERENCES attachments(id) ON DELETE CASCADE,
+                        rating SMALLINT CHECK (rating IN (-1, 1)),
+                        total_views INTEGER DEFAULT 0,
+                        total_clicks INTEGER DEFAULT 0,
+                        first_view_date TIMESTAMP,
+                        last_view_date TIMESTAMP,
+                        feedback TEXT,
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMP,
+                        PRIMARY KEY (user_id, attachment_id)
+                    )
+                    """,
+                    # User Attachment Reports
+                    """
+                    CREATE TABLE IF NOT EXISTS user_attachment_reports (
+                        id SERIAL PRIMARY KEY,
+                        attachment_id INTEGER NOT NULL REFERENCES user_attachments(id) ON DELETE CASCADE,
+                        reporter_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+                        reason TEXT,
+                        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'reviewed', 'resolved', 'dismissed')),
+                        reported_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        resolved_by BIGINT REFERENCES admins(user_id),
+                        resolved_at TIMESTAMP,
+                        resolution_notes TEXT
+                    )
+                    """,
+                    # Tickets
+                    """
+                    CREATE TABLE IF NOT EXISTS tickets (
+                        id SERIAL PRIMARY KEY,
+                        user_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+                        category TEXT,
+                        subject TEXT NOT NULL,
+                        description TEXT,
+                        status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'waiting_user', 'resolved', 'closed')),
+                        priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'critical')),
+                        assigned_to BIGINT REFERENCES admins(user_id),
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMP,
+                        closed_at TIMESTAMP
+                    )
+                    """,
+                    # Ticket Replies
+                    """
+                    CREATE TABLE IF NOT EXISTS ticket_replies (
+                        id SERIAL PRIMARY KEY,
+                        ticket_id INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+                        user_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+                        message TEXT NOT NULL,
+                        is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+                        attachments TEXT[],
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                    )
+                    """,
+                    # Ticket Attachments
+                    """
+                    CREATE TABLE IF NOT EXISTS ticket_attachments (
+                        id SERIAL PRIMARY KEY,
+                        ticket_id INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+                        reply_id INTEGER REFERENCES ticket_replies(id) ON DELETE CASCADE,
+                        file_id TEXT NOT NULL,
+                        file_type TEXT,
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                    )
+                    """,
+                    # FAQs
+                    """
+                    CREATE TABLE IF NOT EXISTS faqs (
+                        id SERIAL PRIMARY KEY,
+                        question TEXT NOT NULL,
+                        answer TEXT NOT NULL,
+                        category TEXT,
+                        language TEXT DEFAULT 'fa' CHECK (language IN ('fa', 'en')),
+                        views INTEGER NOT NULL DEFAULT 0,
+                        helpful_count INTEGER NOT NULL DEFAULT 0,
+                        not_helpful_count INTEGER NOT NULL DEFAULT 0,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMP
+                    )
+                    """,
+                    # Feedback
+                    """
+                    CREATE TABLE IF NOT EXISTS feedback (
+                        id SERIAL PRIMARY KEY,
+                        user_id BIGINT REFERENCES users(user_id) ON DELETE SET NULL,
+                        rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+                        category TEXT,
+                        message TEXT,
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                    )
+                    """,
+                    # Search History
+                    """
+                    CREATE TABLE IF NOT EXISTS search_history (
+                        id SERIAL PRIMARY KEY,
+                        user_id BIGINT,
+                        query TEXT NOT NULL,
+                        results_count INTEGER NOT NULL DEFAULT 0,
+                        execution_time_ms REAL NOT NULL DEFAULT 0,
+                        search_type TEXT,
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                    )
+                    """,
+                    # Popular Searches
+                    """
+                    CREATE TABLE IF NOT EXISTS popular_searches (
+                        query TEXT PRIMARY KEY,
+                        search_count INTEGER NOT NULL DEFAULT 0,
+                        last_searched TIMESTAMP NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+                    )
+                    """,
+                    # Suggested Attachments
+                    """
+                    CREATE TABLE IF NOT EXISTS suggested_attachments (
+                        attachment_id INTEGER NOT NULL REFERENCES attachments(id) ON DELETE CASCADE,
+                        mode TEXT NOT NULL CHECK (mode IN ('br', 'mp')),
+                        priority INTEGER NOT NULL DEFAULT 999,
+                        reason TEXT,
+                        added_by BIGINT REFERENCES admins(user_id),
+                        added_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        is_active BOOLEAN DEFAULT TRUE,
+                        UNIQUE (attachment_id, mode)
+                    )
+                    """,
+                    # Required Channels
+                    """
+                    CREATE TABLE IF NOT EXISTS required_channels (
+                        channel_id TEXT PRIMARY KEY,
+                        title TEXT NOT NULL,
+                        url TEXT NOT NULL,
+                        priority INTEGER NOT NULL DEFAULT 999,
+                        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMP
+                    )
+                    """,
+                    # Blacklisted Words
+                    """
+                    CREATE TABLE IF NOT EXISTS blacklisted_words (
+                        word TEXT PRIMARY KEY,
+                        category TEXT NOT NULL DEFAULT 'general',
+                        severity INTEGER NOT NULL DEFAULT 1 CHECK (severity >= 1 AND severity <= 3),
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                    )
+                    """,
+                    # Settings
+                    """
+                    CREATE TABLE IF NOT EXISTS settings (
+                        key TEXT PRIMARY KEY,
+                        value TEXT,
+                        description TEXT,
+                        category TEXT,
+                        data_type TEXT DEFAULT 'string' CHECK (data_type IN ('string', 'integer', 'boolean', 'json')),
+                        updated_by BIGINT,
+                        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+                    )
+                    """,
+                    # User Attachment Settings
+                    """
+                    CREATE TABLE IF NOT EXISTS user_attachment_settings (
+                        setting_key TEXT PRIMARY KEY,
+                        setting_value TEXT,
+                        description TEXT,
+                        updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        updated_by BIGINT
+                    )
+                    """,
+                    # Bot Settings
+                    """
+                    CREATE TABLE IF NOT EXISTS bot_settings (
+                        key TEXT PRIMARY KEY,
+                        value TEXT,
+                        description TEXT,
+                        updated_at TIMESTAMP DEFAULT NOW()
+                    )
+                    """,
+                    # Guides
+                    """
+                    CREATE TABLE IF NOT EXISTS guides (
+                        id SERIAL PRIMARY KEY,
+                        key TEXT NOT NULL UNIQUE,
+                        mode TEXT NOT NULL CHECK (mode IN ('br', 'mp')),
+                        name TEXT,
+                        code TEXT,
+                        description TEXT,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMP
+                    )
+                    """,
+                    # Guide Photos
+                    """
+                    CREATE TABLE IF NOT EXISTS guide_photos (
+                        id SERIAL PRIMARY KEY,
+                        guide_id INTEGER NOT NULL REFERENCES guides(id) ON DELETE CASCADE,
+                        file_id TEXT NOT NULL,
+                        caption TEXT,
+                        sort_order INTEGER DEFAULT 0
+                    )
+                    """,
+                    # Guide Videos
+                    """
+                    CREATE TABLE IF NOT EXISTS guide_videos (
+                        id SERIAL PRIMARY KEY,
+                        guide_id INTEGER NOT NULL REFERENCES guides(id) ON DELETE CASCADE,
+                        file_id TEXT NOT NULL,
+                        caption TEXT,
+                        sort_order INTEGER DEFAULT 0
+                    )
+                    """,
+                    # UA Stats Cache
+                    """
+                    CREATE TABLE IF NOT EXISTS ua_stats_cache (
+                        id INTEGER PRIMARY KEY DEFAULT 1,
+                        total_attachments INTEGER DEFAULT 0,
+                        pending_count INTEGER DEFAULT 0,
+                        approved_count INTEGER DEFAULT 0,
+                        rejected_count INTEGER DEFAULT 0,
+                        total_users INTEGER DEFAULT 0,
+                        active_users INTEGER DEFAULT 0,
+                        banned_users INTEGER DEFAULT 0,
+                        br_count INTEGER DEFAULT 0,
+                        mp_count INTEGER DEFAULT 0,
+                        total_likes INTEGER DEFAULT 0,
+                        total_reports INTEGER DEFAULT 0,
+                        pending_reports INTEGER DEFAULT 0,
+                        last_week_submissions INTEGER DEFAULT 0,
+                        last_week_approvals INTEGER DEFAULT 0,
+                        updated_at TIMESTAMP DEFAULT NOW(),
+                        CONSTRAINT single_row_cache CHECK (id = 1)
+                    )
+                    """,
+                    # UA Top Weapons Cache
+                    """
+                    CREATE TABLE IF NOT EXISTS ua_top_weapons_cache (
+                        weapon_name TEXT NOT NULL,
+                        mode TEXT,
+                        attachment_count INTEGER NOT NULL,
+                        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+                    )
+                    """,
+                    # UA Top Users Cache
+                    """
+                    CREATE TABLE IF NOT EXISTS ua_top_users_cache (
+                        user_id BIGINT NOT NULL,
+                        username TEXT,
+                        approved_count INTEGER NOT NULL,
+                        total_likes INTEGER NOT NULL,
+                        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+                    )
+                    """,
+                    # Data Health Checks
+                    """
+                    CREATE TABLE IF NOT EXISTS data_health_checks (
+                        id SERIAL PRIMARY KEY,
+                        check_type TEXT NOT NULL,
+                        severity TEXT NOT NULL CHECK (severity IN ('info', 'warning', 'error', 'critical')),
+                        category TEXT,
+                        issue_count INTEGER NOT NULL DEFAULT 0,
+                        details JSONB,
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                    )
+                    """,
+                    # Data Quality Metrics
+                    """
+                    CREATE TABLE IF NOT EXISTS data_quality_metrics (
+                        id SERIAL PRIMARY KEY,
+                        total_weapons INTEGER NOT NULL DEFAULT 0,
+                        total_attachments INTEGER NOT NULL DEFAULT 0,
+                        weapons_with_attachments INTEGER NOT NULL DEFAULT 0,
+                        weapons_without_attachments INTEGER NOT NULL DEFAULT 0,
+                        attachments_with_images INTEGER NOT NULL DEFAULT 0,
+                        attachments_without_images INTEGER NOT NULL DEFAULT 0,
+                        health_score REAL NOT NULL DEFAULT 0,
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                    )
+                    """,
+                    # User Notification Preferences
+                    """
+                    CREATE TABLE IF NOT EXISTS user_notification_preferences (
+                        user_id BIGINT PRIMARY KEY,
+                        enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                        modes JSONB NOT NULL DEFAULT '["br","mp"]'::jsonb,
+                        events JSONB NOT NULL DEFAULT '{}'::jsonb,
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                    """,
+                    # Scheduled Notifications
+                    """
+                    CREATE TABLE IF NOT EXISTS scheduled_notifications (
+                        id SERIAL PRIMARY KEY,
+                        message_type TEXT NOT NULL CHECK (message_type IN ('text','photo')),
+                        message_text TEXT,
+                        photo_file_id TEXT,
+                        parse_mode TEXT DEFAULT 'Markdown',
+                        interval_hours INTEGER NOT NULL,
+                        enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                        last_sent_at TIMESTAMPTZ,
+                        next_run_at TIMESTAMPTZ NOT NULL,
+                        created_by BIGINT,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                    """,
+                    # Attachment Metrics
+                    """
+                    CREATE TABLE IF NOT EXISTS attachment_metrics (
+                        id SERIAL PRIMARY KEY,
+                        attachment_id INTEGER NOT NULL,
+                        user_id BIGINT,
+                        action_type TEXT NOT NULL CHECK (action_type IN ('view','click','share','copy','rate')),
+                        session_id TEXT,
+                        metadata JSONB,
+                        action_date TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                    """,
+                    # Attachment Performance
+                    """
+                    CREATE TABLE IF NOT EXISTS attachment_performance (
+                        attachment_id INTEGER NOT NULL,
+                        performance_date DATE NOT NULL,
+                        popularity_score REAL NOT NULL DEFAULT 0,
+                        trending_score REAL NOT NULL DEFAULT 0,
+                        engagement_rate REAL NOT NULL DEFAULT 0,
+                        quality_score REAL NOT NULL DEFAULT 0,
+                        rank_in_weapon INTEGER,
+                        rank_overall INTEGER,
+                        PRIMARY KEY (attachment_id, performance_date)
+                    )
+                    """,
+                    # CMS Content
+                    """
+                    CREATE TABLE IF NOT EXISTS cms_content (
+                        content_id SERIAL PRIMARY KEY,
+                        content_type TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        body TEXT NOT NULL,
+                        tags JSONB NOT NULL DEFAULT '[]'::jsonb,
+                        author_id BIGINT,
+                        status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published','archived')),
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        published_at TIMESTAMPTZ
+                    )
+                    """
+                ]
 
-                # 0.2) Ensure 'user_attachment_settings' table exists
+                for sql in tables_sql:
+                    try:
+                        cursor.execute(sql)
+                    except Exception as e:
+                        logger.warning(f"ensure_schema(create table) warning: {e}")
+
+                # 3. Indexes (Helpful indexes)
+                indexes_sql = [
+                    "CREATE INDEX IF NOT EXISTS idx_attachments_weapon_mode ON attachments (weapon_id, mode)",
+                    "CREATE INDEX IF NOT EXISTS idx_attachments_is_top ON attachments (weapon_id, mode) WHERE is_top = TRUE",
+                    "CREATE INDEX IF NOT EXISTS idx_attachments_code_trgm ON attachments USING gin (code gin_trgm_ops)",
+                    "CREATE INDEX IF NOT EXISTS idx_attachments_name_trgm ON attachments USING gin (name gin_trgm_ops)",
+                    "CREATE INDEX IF NOT EXISTS idx_attachments_views ON attachments (views_count DESC)",
+                    "CREATE INDEX IF NOT EXISTS idx_users_language ON users (language)",
+                    "CREATE INDEX IF NOT EXISTS idx_users_last_seen ON users (last_seen DESC)",
+                    "CREATE INDEX IF NOT EXISTS idx_user_attachments_status ON user_attachments (status, submitted_at DESC)",
+                    "CREATE INDEX IF NOT EXISTS idx_user_attachments_user ON user_attachments (user_id)",
+                    "CREATE INDEX IF NOT EXISTS idx_user_attachments_approved ON user_attachments (approved_at DESC) WHERE status = 'approved'",
+                    "CREATE INDEX IF NOT EXISTS idx_uae_attachment_rating ON user_attachment_engagement (attachment_id, rating)",
+                    "CREATE INDEX IF NOT EXISTS idx_uae_attachment_views ON user_attachment_engagement (attachment_id, total_views DESC)",
+                    "CREATE INDEX IF NOT EXISTS idx_uar_attachment ON user_attachment_reports (attachment_id)",
+                    "CREATE INDEX IF NOT EXISTS idx_uar_status ON user_attachment_reports (status, reported_at DESC)",
+                    "CREATE UNIQUE INDEX IF NOT EXISTS ux_uar_att_reporter ON user_attachment_reports (attachment_id, reporter_id) WHERE status = 'pending'",
+                    "CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets (status, created_at DESC)",
+                    "CREATE INDEX IF NOT EXISTS idx_tickets_user ON tickets (user_id)",
+                    "CREATE INDEX IF NOT EXISTS idx_tickets_assigned ON tickets (assigned_to) WHERE assigned_to IS NOT NULL",
+                    "CREATE INDEX IF NOT EXISTS idx_ticket_replies_ticket ON ticket_replies (ticket_id, created_at)",
+                    "CREATE INDEX IF NOT EXISTS idx_faqs_category ON faqs (category) WHERE is_active = TRUE",
+                    "CREATE INDEX IF NOT EXISTS idx_faqs_language ON faqs (language) WHERE is_active = TRUE",
+                    "CREATE INDEX IF NOT EXISTS idx_search_history_created ON search_history (created_at DESC)",
+                    "CREATE INDEX IF NOT EXISTS idx_search_history_user ON search_history (user_id) WHERE user_id IS NOT NULL",
+                    "CREATE INDEX IF NOT EXISTS idx_suggested_mode_priority ON suggested_attachments (mode, priority) WHERE is_active = TRUE",
+                    "CREATE INDEX IF NOT EXISTS idx_required_channels_priority ON required_channels (priority ASC) WHERE is_active = TRUE",
+                    "CREATE INDEX IF NOT EXISTS idx_ua_top_weapons_count ON ua_top_weapons_cache (attachment_count DESC)",
+                    "CREATE INDEX IF NOT EXISTS idx_ua_top_users_approved ON ua_top_users_cache (approved_count DESC)",
+                    "CREATE INDEX IF NOT EXISTS idx_health_checks_created ON data_health_checks (created_at DESC)",
+                    "CREATE UNIQUE INDEX IF NOT EXISTS ux_attachments_weapon_mode_code ON attachments (weapon_id, mode, code)",
+                    "CREATE UNIQUE INDEX IF NOT EXISTS ux_suggested_attachment_mode ON suggested_attachments (attachment_id, mode)",
+                    "CREATE INDEX IF NOT EXISTS ix_suggested_mode ON suggested_attachments (mode)",
+                    "CREATE INDEX IF NOT EXISTS ix_uae_attachment_id ON user_attachment_engagement (attachment_id)",
+                    "CREATE INDEX IF NOT EXISTS ix_uae_attachment_id_rating ON user_attachment_engagement (attachment_id, rating)",
+                    "CREATE INDEX IF NOT EXISTS ix_ticket_attachments_ticket_id ON ticket_attachments (ticket_id)",
+                    "CREATE INDEX IF NOT EXISTS ix_ticket_attachments_reply_id ON ticket_attachments (reply_id)",
+                    "CREATE INDEX IF NOT EXISTS ix_sched_notif_next_run ON scheduled_notifications (next_run_at)",
+                    "CREATE INDEX IF NOT EXISTS ix_sched_notif_enabled_next ON scheduled_notifications (enabled, next_run_at)",
+                    "CREATE INDEX IF NOT EXISTS ix_am_attachment_date ON attachment_metrics (attachment_id, action_date)",
+                    "CREATE INDEX IF NOT EXISTS ix_am_action_date ON attachment_metrics (action_type, action_date)",
+                    "CREATE INDEX IF NOT EXISTS ix_am_attachment_action ON attachment_metrics (attachment_id, action_type)",
+                    "CREATE INDEX IF NOT EXISTS ix_am_user ON attachment_metrics (user_id)",
+                    "CREATE INDEX IF NOT EXISTS ix_uae_attachment ON user_attachment_engagement (attachment_id)",
+                    "CREATE INDEX IF NOT EXISTS ix_cms_content_status_pub ON cms_content (status, published_at DESC)",
+                    "CREATE INDEX IF NOT EXISTS ix_cms_content_type_status ON cms_content (content_type, status)",
+                    "CREATE INDEX IF NOT EXISTS ix_cms_content_tags_gin ON cms_content USING gin (tags)"
+                ]
+
+                for sql in indexes_sql:
+                    try:
+                        cursor.execute(sql)
+                    except Exception as e:
+                        logger.warning(f"ensure_schema(create index) warning: {e}")
+
+                # 4. Seed Data (Default values)
                 try:
+                    # Weapon Categories
                     cursor.execute("""
-                        CREATE TABLE IF NOT EXISTS user_attachment_settings (
-                            setting_key TEXT PRIMARY KEY,
-                            setting_value TEXT,
-                            description TEXT,
-                            updated_at TIMESTAMP DEFAULT NOW()
-                        )
+                        INSERT INTO weapon_categories (name, display_name, sort_order) VALUES
+                            ('assault_rifle', 'Assault Rifle', 1),
+                            ('smg', 'SMG', 2),
+                            ('lmg', 'LMG', 3),
+                            ('sniper', 'Sniper', 4),
+                            ('marksman', 'Marksman', 5),
+                            ('shotgun', 'Shotgun', 6),
+                            ('pistol', 'Pistol', 7),
+                            ('launcher', 'Launcher', 8)
+                        ON CONFLICT (name) DO UPDATE SET
+                            display_name = EXCLUDED.display_name,
+                            sort_order = EXCLUDED.sort_order
                     """)
-                    # Insert default settings if not exist
+                    
+                    # Roles
+                    cursor.execute("""
+                        INSERT INTO roles (name, display_name, description) VALUES
+                            ('super_admin', 'Super Admin', 'Full system access'),
+                            ('admin', 'Admin', 'General administrative access'),
+                            ('moderator', 'Moderator', 'Content moderation access'),
+                            ('support', 'Support', 'User support access')
+                        ON CONFLICT (name) DO NOTHING
+                    """)
+                    
+                    # Permissions
+                    cursor.execute("""
+                        INSERT INTO role_permissions (role_id, permission) 
+                        SELECT r.id, p.perm FROM roles r, 
+                            (VALUES 
+                                ('super_admin', 'all'),
+                                ('admin', 'manage_attachments'),
+                                ('admin', 'manage_users'),
+                                ('admin', 'view_analytics'),
+                                ('moderator', 'moderate_content'),
+                                ('moderator', 'manage_reports'),
+                                ('support', 'manage_tickets'),
+                                ('support', 'manage_faqs')
+                            ) AS p(role, perm)
+                        WHERE r.name = p.role
+                        ON CONFLICT DO NOTHING
+                    """)
+                    
+                    # Default Settings
                     cursor.execute("""
                         INSERT INTO user_attachment_settings (setting_key, setting_value, description)
                         VALUES ('system_enabled', 'true', 'Enable/Disable User Attachments System')
                         ON CONFLICT (setting_key) DO NOTHING
                     """)
-                except Exception as e:
-                    logger.warning(f"ensure_schema(create user_attachment_settings) warning: {e}")
-
-                # 0.3) Ensure 'bot_settings' table exists
-                try:
-                    cursor.execute("""
-                        CREATE TABLE IF NOT EXISTS bot_settings (
-                            key TEXT PRIMARY KEY,
-                            value TEXT,
-                            description TEXT,
-                            updated_at TIMESTAMP DEFAULT NOW()
-                        )
-                    """)
-                except Exception as e:
-                    logger.warning(f"ensure_schema(create bot_settings) warning: {e}")
-
-                # 0.4) Ensure 'attachments' table exists
-                try:
-                    cursor.execute("""
-                        CREATE TABLE IF NOT EXISTS attachments (
-                            id SERIAL PRIMARY KEY,
-                            name TEXT NOT NULL,
-                            code TEXT UNIQUE NOT NULL,
-                            file_id TEXT,
-                            type TEXT,
-                            downloads INTEGER DEFAULT 0,
-                            created_at TIMESTAMP DEFAULT NOW(),
-                            updated_at TIMESTAMPTZ DEFAULT NOW(),
-                            order_index INTEGER
-                        )
-                    """)
-                except Exception as e:
-                    logger.warning(f"ensure_schema(create attachments) warning: {e}")
-
-                # 0.5) users.language and users.last_seen (compatibility check)
-                try:
-                    # language TEXT DEFAULT 'fa'
-                    if _table_exists('users'):
-                        if not _column_exists('users', 'language'):
-                            cursor.execute(
-                                "ALTER TABLE users ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'fa'"
-                            )
-                            logger.info("Added missing column: users.language")
-                        # backfill nulls
-                        try:
-                            cursor.execute(
-                                "UPDATE users SET language = 'fa' WHERE language IS NULL"
-                            )
-                        except Exception:
-                            pass
-                        # last_seen TIMESTAMP (nullable)
-                        if not _column_exists('users', 'last_seen'):
-                            cursor.execute(
-                                "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP"
-                            )
-                            logger.info("Added missing column: users.last_seen")
-                except Exception as e:
-                    logger.warning(f"ensure_schema(users columns) warning: {e}")
-
-                # 1) attachments.updated_at
-                try:
-                    if not _column_exists('attachments', 'updated_at'):
-                        cursor.execute(
-                            "ALTER TABLE attachments ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ"
-                        )
-                        logger.info("Added missing column: attachments.updated_at")
-                    # Backfill nulls to NOW()
-                    cursor.execute(
-                        "UPDATE attachments SET updated_at = NOW() WHERE updated_at IS NULL"
-                    )
-                except Exception as e:
-                    logger.warning(f"ensure_schema(updated_at) warning: {e}")
-
-                # 2) attachments.order_index (nullable integer used for top ordering)
-                try:
-                    if not _column_exists('attachments', 'order_index'):
-                        cursor.execute(
-                            "ALTER TABLE attachments ADD COLUMN IF NOT EXISTS order_index INTEGER"
-                        )
-                        logger.info("Added missing column: attachments.order_index")
-                except Exception as e:
-                    logger.warning(f"ensure_schema(order_index) warning: {e}")
-
-                # 2.5) Ensure pg_trgm extension and GIN trigram indexes for better search
-                try:
-                    try:
-                        cursor.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
-                    except Exception as ext_err:
-                        logger.warning(f"pg_trgm extension ensure failed (non-fatal): {ext_err}")
-                    # GIN trigram indexes on attachments.name/code
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS idx_attachments_name_trgm ON attachments USING gin (name gin_trgm_ops)"
-                    )
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS idx_attachments_code_trgm ON attachments USING gin (code gin_trgm_ops)"
-                    )
-                except Exception as e:
-                    logger.warning(f"ensure_schema(trgm indexes) warning: {e}")
-
-                # 3) Ensure unique index for ON CONFLICT (weapon_id, mode, code)
-                try:
-                    cursor.execute(
-                        "CREATE UNIQUE INDEX IF NOT EXISTS ux_attachments_weapon_mode_code ON attachments (weapon_id, mode, code)"
-                    )
-                    logger.info("Ensured unique index: ux_attachments_weapon_mode_code")
-                except Exception as e:
-                    logger.warning(f"ensure_schema(unique_index) warning: {e}")
-
-                # 3.1) Helpful index for filtering/joining attachments by weapon and mode
-                try:
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS ix_attachments_weapon_mode ON attachments (weapon_id, mode)"
-                    )
-                except Exception as e:
-                    logger.warning(f"ensure_schema(ix_attachments_weapon_mode) warning: {e}")
-
-                # 3.2) Suggested attachments indexes (speed up counts and uniqueness)
-                try:
-                    cursor.execute(
-                        "CREATE UNIQUE INDEX IF NOT EXISTS ux_suggested_attachment_mode ON suggested_attachments (attachment_id, mode)"
-                    )
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS ix_suggested_mode ON suggested_attachments (mode)"
-                    )
-                except Exception as e:
-                    logger.warning(f"ensure_schema(suggested indexes) warning: {e}")
-
-                # 3.3) Engagement table indexes for faster aggregation in analytics
-                try:
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS ix_uae_attachment_id ON user_attachment_engagement (attachment_id)"
-                    )
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS ix_uae_attachment_id_rating ON user_attachment_engagement (attachment_id, rating)"
-                    )
-                except Exception as e:
-                    logger.warning(f"ensure_schema(uae indexes) warning: {e}")
-
-                # 4) user_submission_stats required columns (for UA system)
-                try:
-                    # is_banned BOOLEAN NOT NULL DEFAULT FALSE
-                    if not _column_exists('user_submission_stats', 'is_banned'):
-                        cursor.execute(
-                            "ALTER TABLE user_submission_stats ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE"
-                        )
-                        logger.info("Added missing column: user_submission_stats.is_banned")
-                    cursor.execute(
-                        "ALTER TABLE user_submission_stats ALTER COLUMN is_banned SET DEFAULT FALSE"
-                    )
-                    # backfill nulls and enforce NOT NULL
-                    cursor.execute(
-                        "UPDATE user_submission_stats SET is_banned = FALSE WHERE is_banned IS NULL"
-                    )
-                    cursor.execute(
-                        "ALTER TABLE user_submission_stats ALTER COLUMN is_banned SET NOT NULL"
-                    )
-
-                    # daily_submissions INTEGER NOT NULL DEFAULT 0
-                    if not _column_exists('user_submission_stats', 'daily_submissions'):
-                        cursor.execute(
-                            "ALTER TABLE user_submission_stats ADD COLUMN IF NOT EXISTS daily_submissions INTEGER DEFAULT 0"
-                        )
-                        logger.info("Added missing column: user_submission_stats.daily_submissions")
-                    cursor.execute(
-                        "ALTER TABLE user_submission_stats ALTER COLUMN daily_submissions SET DEFAULT 0"
-                    )
-                    cursor.execute(
-                        "UPDATE user_submission_stats SET daily_submissions = 0 WHERE daily_submissions IS NULL"
-                    )
-                    cursor.execute(
-                        "ALTER TABLE user_submission_stats ALTER COLUMN daily_submissions SET NOT NULL"
-                    )
-
-                    # daily_reset_date DATE
-                    if not _column_exists('user_submission_stats', 'daily_reset_date'):
-                        cursor.execute(
-                            "ALTER TABLE user_submission_stats ADD COLUMN IF NOT EXISTS daily_reset_date DATE"
-                        )
-                        logger.info("Added missing column: user_submission_stats.daily_reset_date")
-
-                    # banned_reason TEXT
-                    if not _column_exists('user_submission_stats', 'banned_reason'):
-                        cursor.execute(
-                            "ALTER TABLE user_submission_stats ADD COLUMN IF NOT EXISTS banned_reason TEXT"
-                        )
-                        logger.info("Added missing column: user_submission_stats.banned_reason")
-
-                    # banned_at TIMESTAMP
-                    if not _column_exists('user_submission_stats', 'banned_at'):
-                        cursor.execute(
-                            "ALTER TABLE user_submission_stats ADD COLUMN IF NOT EXISTS banned_at TIMESTAMP"
-                        )
-                        logger.info("Added missing column: user_submission_stats.banned_at")
-                except Exception as e:
-                    logger.warning(f"ensure_schema(user_submission_stats) warning: {e}")
-
-                # 4.5) user_notification_preferences table (for per-user notification settings)
-                try:
-                    if not _table_exists('user_notification_preferences'):
-                        cursor.execute(
-                            """
-                            CREATE TABLE IF NOT EXISTS user_notification_preferences (
-                              user_id BIGINT PRIMARY KEY,
-                              enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                              modes JSONB NOT NULL DEFAULT '["br","mp"]'::jsonb,
-                              events JSONB NOT NULL DEFAULT '{}'::jsonb,
-                              updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                            )
-                            """
-                        )
-                        logger.info("Created table: user_notification_preferences")
-                    else:
-                        # Legacy installs: ensure required columns exist with sane defaults
-                        if not _column_exists('user_notification_preferences', 'enabled'):
-                            cursor.execute(
-                                "ALTER TABLE user_notification_preferences ADD COLUMN IF NOT EXISTS enabled BOOLEAN NOT NULL DEFAULT TRUE"
-                            )
-                        if not _column_exists('user_notification_preferences', 'modes'):
-                            cursor.execute(
-                                "ALTER TABLE user_notification_preferences ADD COLUMN IF NOT EXISTS modes JSONB NOT NULL DEFAULT '[""br"",""mp""]'::jsonb"
-                            )
-                        if not _column_exists('user_notification_preferences', 'events'):
-                            cursor.execute(
-                                "ALTER TABLE user_notification_preferences ADD COLUMN IF NOT EXISTS events JSONB NOT NULL DEFAULT '{}'::jsonb"
-                            )
-                        if not _column_exists('user_notification_preferences', 'updated_at'):
-                            cursor.execute(
-                                "ALTER TABLE user_notification_preferences ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"
-                            )
-                except Exception as e:
-                    logger.warning(f"ensure_schema(user_notification_prefs) warning: {e}")
-
-                # 5) Analytics tables alignment
-                try:
-                    # popular_searches table with search_count column
-                    if not _table_exists('popular_searches'):
-                        cursor.execute(
-                            """
-                            CREATE TABLE IF NOT EXISTS popular_searches (
-                              query TEXT PRIMARY KEY,
-                              search_count INTEGER NOT NULL DEFAULT 0,
-                              last_searched TIMESTAMP NOT NULL DEFAULT NOW()
-                            )
-                            """
-                        )
-                    else:
-                        # Rename total_count -> search_count if needed
-                        if not _column_exists('popular_searches', 'search_count') and _column_exists('popular_searches', 'total_count'):
-                            cursor.execute("ALTER TABLE popular_searches RENAME COLUMN total_count TO search_count")
-                    # search_history table and execution_time_ms column
-                    if not _table_exists('search_history'):
-                        cursor.execute(
-                            """
-                            CREATE TABLE IF NOT EXISTS search_history (
-                              id SERIAL PRIMARY KEY,
-                              user_id BIGINT,
-                              query TEXT NOT NULL,
-                              results_count INTEGER NOT NULL DEFAULT 0,
-                              execution_time_ms REAL NOT NULL DEFAULT 0,
-                              created_at TIMESTAMP NOT NULL DEFAULT NOW()
-                            )
-                            """
-                        )
-                    else:
-                        if not _column_exists('search_history', 'execution_time_ms'):
-                            cursor.execute("ALTER TABLE search_history ADD COLUMN IF NOT EXISTS execution_time_ms REAL DEFAULT 0")
-                        if not _column_exists('search_history', 'results_count'):
-                            cursor.execute("ALTER TABLE search_history ADD COLUMN IF NOT EXISTS results_count INTEGER DEFAULT 0")
-                except Exception as e:
-                    logger.warning(f"ensure_schema(analytics) warning: {e}")
-
-                # 5.5) Data health tables (reports & metrics)
-                try:
-                    # data_health_checks: store individual check results
-                    cursor.execute(
-                        """
-                        CREATE TABLE IF NOT EXISTS data_health_checks (
-                          id SERIAL PRIMARY KEY,
-                          check_type TEXT NOT NULL,
-                          severity TEXT NOT NULL CHECK (severity IN ('CRITICAL','WARNING','INFO')),
-                          category TEXT,
-                          issue_count INTEGER NOT NULL DEFAULT 0,
-                          details JSONB,
-                          check_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                          resolved BOOLEAN NOT NULL DEFAULT FALSE
-                        )
-                        """
-                    )
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS ix_health_checks_sev_res ON data_health_checks (severity, resolved)"
-                    )
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS ix_health_checks_date ON data_health_checks (check_date DESC)"
-                    )
-
-                    # data_quality_metrics: aggregates per check run
-                    cursor.execute(
-                        """
-                        CREATE TABLE IF NOT EXISTS data_quality_metrics (
-                          id SERIAL PRIMARY KEY,
-                          metric_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                          total_weapons INTEGER NOT NULL DEFAULT 0,
-                          total_attachments INTEGER NOT NULL DEFAULT 0,
-                          weapons_with_attachments INTEGER NOT NULL DEFAULT 0,
-                          weapons_without_attachments INTEGER NOT NULL DEFAULT 0,
-                          attachments_with_images INTEGER NOT NULL DEFAULT 0,
-                          attachments_without_images INTEGER NOT NULL DEFAULT 0,
-                          health_score REAL NOT NULL DEFAULT 0
-                        )
-                        """
-                    )
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS ix_dqm_metric_date ON data_quality_metrics (metric_date DESC)"
-                    )
-                    # Ensure 'id' column has proper nextval default and sequence ownership (in case of legacy table)
-                    def _ensure_serial_default(table: str, seq_name: str):
-                        cursor.execute(
-                            """
-                            SELECT column_default FROM information_schema.columns
-                            WHERE table_schema = current_schema() AND table_name = %s AND column_name = 'id'
-                            """,
-                            (table,),
-                        )
-                        row = cursor.fetchone()
-                        col_default = (row.get('column_default') if row else None)
-                        if not col_default or 'nextval' not in str(col_default):
-                            # Create sequence and attach to id
-                            cursor.execute(f"CREATE SEQUENCE IF NOT EXISTS {seq_name}")
-                            cursor.execute(f"ALTER SEQUENCE {seq_name} OWNED BY {table}.id")
-                            cursor.execute(f"ALTER TABLE {table} ALTER COLUMN id SET DEFAULT nextval('{seq_name}')")
-
-                    _ensure_serial_default('data_quality_metrics', 'data_quality_metrics_id_seq')
-                    _ensure_serial_default('data_health_checks', 'data_health_checks_id_seq')
-                    # Sync sequences to the current MAX(id) to avoid duplicate key on next inserts
-                    try:
-                        cursor.execute(
-                            """
-                            SELECT setval(
-                              pg_get_serial_sequence('data_quality_metrics','id'),
-                              COALESCE((SELECT MAX(id) FROM data_quality_metrics), 0) + 1,
-                              false
-                            )
-                            """
-                        )
-                    except Exception as e2:
-                        logger.warning(f"ensure_schema(data_quality_metrics setval) warning: {e2}")
-
-                    try:
-                        cursor.execute(
-                            """
-                            SELECT setval(
-                              pg_get_serial_sequence('data_health_checks','id'),
-                              COALESCE((SELECT MAX(id) FROM data_health_checks), 0) + 1,
-                              false
-                            )
-                            """
-                        )
-                    except Exception as e3:
-                        logger.warning(f"ensure_schema(data_health_checks setval) warning: {e3}")
-                except Exception as e:
-                    logger.warning(f"ensure_schema(data_health) warning: {e}")
-
-                # 5) ticket_attachments.reply_id (for associating attachments to replies)
-                try:
-                    if not _column_exists('ticket_attachments', 'reply_id'):
-                        cursor.execute(
-                            "ALTER TABLE ticket_attachments ADD COLUMN IF NOT EXISTS reply_id INTEGER"
-                        )
-                        logger.info("Added missing column: ticket_attachments.reply_id")
-                    # Optional helpful indexes
-                    try:
-                        cursor.execute(
-                            "CREATE INDEX IF NOT EXISTS ix_ticket_attachments_ticket_id ON ticket_attachments (ticket_id)"
-                        )
-                        cursor.execute(
-                            "CREATE INDEX IF NOT EXISTS ix_ticket_attachments_reply_id ON ticket_attachments (reply_id)"
-                        )
-                    except Exception as e:
-                        logger.warning(f"ensure_schema(ticket_attachments indexes) warning: {e}")
-                except Exception as e:
-                    logger.warning(f"ensure_schema(ticket_attachments) warning: {e}")
-                
-                # 6) scheduled_notifications table for recurring broadcasts
-                try:
-                    # Create table if it does not exist
-                    cursor.execute(
-                        """
-                        CREATE TABLE IF NOT EXISTS scheduled_notifications (
-                          id SERIAL PRIMARY KEY,
-                          message_type TEXT NOT NULL CHECK (message_type IN ('text','photo')),
-                          message_text TEXT,
-                          photo_file_id TEXT,
-                          parse_mode TEXT DEFAULT 'Markdown',
-                          interval_hours INTEGER NOT NULL,
-                          enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                          last_sent_at TIMESTAMPTZ,
-                          next_run_at TIMESTAMPTZ NOT NULL,
-                          created_by BIGINT,
-                          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                        )
-                        """
-                    )
-                    # Helpful indexes
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS ix_sched_notif_next_run ON scheduled_notifications (next_run_at)"
-                    )
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS ix_sched_notif_enabled_next ON scheduled_notifications (enabled, next_run_at)"
-                    )
-                except Exception as e:
-                    logger.warning(f"ensure_schema(scheduled_notifications) warning: {e}")
-                
-                # 6.5) Attachment analytics tables (metrics, engagement, performance)
-                try:
-                    # attachment_metrics: event stream of interactions
-                    cursor.execute(
-                        """
-                        CREATE TABLE IF NOT EXISTS attachment_metrics (
-                          id SERIAL PRIMARY KEY,
-                          attachment_id INTEGER NOT NULL,
-                          user_id BIGINT,
-                          action_type TEXT NOT NULL CHECK (action_type IN ('view','click','share','copy','rate')),
-                          session_id TEXT,
-                          metadata JSONB,
-                          action_date TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                        )
-                        """
-                    )
-                    # Helpful indexes
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS ix_am_attachment_date ON attachment_metrics (attachment_id, action_date)"
-                    )
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS ix_am_action_date ON attachment_metrics (action_type, action_date)"
-                    )
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS ix_am_attachment_action ON attachment_metrics (attachment_id, action_type)"
-                    )
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS ix_am_user ON attachment_metrics (user_id)"
-                    )
                     
-                    # user_attachment_engagement: aggregated per user per attachment
-                    cursor.execute(
-                        """
-                        CREATE TABLE IF NOT EXISTS user_attachment_engagement (
-                          user_id BIGINT NOT NULL,
-                          attachment_id INTEGER NOT NULL,
-                          first_view_date TIMESTAMPTZ,
-                          last_view_date TIMESTAMPTZ,
-                          total_views INTEGER NOT NULL DEFAULT 0,
-                          total_clicks INTEGER NOT NULL DEFAULT 0,
-                          rating INTEGER,
-                          feedback TEXT,
-                          PRIMARY KEY (user_id, attachment_id)
-                        )
-                        """
-                    )
-                    # Helpful indexes for analytics
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS ix_uae_attachment ON user_attachment_engagement (attachment_id)"
-                    )
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS ix_uae_attachment_rating ON user_attachment_engagement (attachment_id, rating)"
-                    )
+                    # Initialize Cache
+                    cursor.execute("INSERT INTO ua_stats_cache (id) VALUES (1) ON CONFLICT DO NOTHING")
                     
-                    # attachment_performance: daily KPIs per attachment
-                    cursor.execute(
-                        """
-                        CREATE TABLE IF NOT EXISTS attachment_performance (
-                          attachment_id INTEGER NOT NULL,
-                          performance_date DATE NOT NULL,
-                          popularity_score REAL NOT NULL DEFAULT 0,
-                          trending_score REAL NOT NULL DEFAULT 0,
-                          engagement_rate REAL NOT NULL DEFAULT 0,
-                          quality_score REAL NOT NULL DEFAULT 0,
-                          rank_in_weapon INTEGER,
-                          rank_overall INTEGER,
-                          PRIMARY KEY (attachment_id, performance_date)
-                        )
-                        """
-                    )
                 except Exception as e:
-                    logger.warning(f"ensure_schema(attachment analytics) warning: {e}")
+                    logger.warning(f"ensure_schema(seed data) warning: {e}")
 
-                # 6.6) CMS tables (content storage with tags and publication state)
-                try:
-                    cursor.execute(
-                        """
-                        CREATE TABLE IF NOT EXISTS cms_content (
-                          content_id SERIAL PRIMARY KEY,
-                          content_type TEXT NOT NULL,
-                          title TEXT NOT NULL,
-                          body TEXT NOT NULL,
-                          tags JSONB NOT NULL DEFAULT '[]'::jsonb,
-                          author_id BIGINT,
-                          status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published','archived')),
-                          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                          published_at TIMESTAMPTZ
-                        )
-                        """
-                    )
-                    # Helpful indexes
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS ix_cms_content_status_pub ON cms_content (status, published_at DESC)"
-                    )
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS ix_cms_content_type_status ON cms_content (content_type, status)"
-                    )
-                    # pg_trgm index for faster title search
-                    try:
-                        cursor.execute(
-                            "CREATE INDEX IF NOT EXISTS ix_cms_content_title_trgm ON cms_content USING gin (title gin_trgm_ops)"
-                        )
-                    except Exception as e_trgm:
-                        logger.warning(f"ensure_schema(cms title trigram index) warning: {e_trgm}")
-                    # GIN index on tags JSONB
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS ix_cms_content_tags_gin ON cms_content USING gin (tags)"
-                    )
-                except Exception as e:
-                    logger.warning(f"ensure_schema(cms tables) warning: {e}")
-
-                # 7) UA cache tables for dashboards (best-effort)
-                try:
-                    cursor.execute(
-                        """
-                        CREATE TABLE IF NOT EXISTS ua_stats_cache (
-                          id INTEGER PRIMARY KEY,
-                          total_attachments INTEGER NOT NULL DEFAULT 0,
-                          pending_count INTEGER NOT NULL DEFAULT 0,
-                          approved_count INTEGER NOT NULL DEFAULT 0,
-                          rejected_count INTEGER NOT NULL DEFAULT 0,
-                          total_users INTEGER NOT NULL DEFAULT 0,
-                          active_users INTEGER NOT NULL DEFAULT 0,
-                          banned_users INTEGER NOT NULL DEFAULT 0,
-                          br_count INTEGER NOT NULL DEFAULT 0,
-                          mp_count INTEGER NOT NULL DEFAULT 0,
-                          total_likes INTEGER NOT NULL DEFAULT 0,
-                          total_reports INTEGER NOT NULL DEFAULT 0,
-                          pending_reports INTEGER NOT NULL DEFAULT 0,
-                          last_week_submissions INTEGER NOT NULL DEFAULT 0,
-                          last_week_approvals INTEGER NOT NULL DEFAULT 0,
-                          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                        )
-                        """
-                    )
-                    cursor.execute(
-                        """
-                        CREATE TABLE IF NOT EXISTS ua_top_weapons_cache (
-                          weapon_name TEXT,
-                          attachment_count INTEGER NOT NULL DEFAULT 0,
-                          mode TEXT,
-                          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                        )
-                        """
-                    )
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS ix_ua_top_weapons_count ON ua_top_weapons_cache (attachment_count DESC)"
-                    )
-                    cursor.execute(
-                        """
-                        CREATE TABLE IF NOT EXISTS ua_top_users_cache (
-                          user_id BIGINT,
-                          username TEXT,
-                          approved_count INTEGER NOT NULL DEFAULT 0,
-                          total_likes INTEGER NOT NULL DEFAULT 0,
-                          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                        )
-                        """
-                    )
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS ix_ua_top_users_approved ON ua_top_users_cache (approved_count DESC)"
-                    )
-                except Exception as e:
-                    logger.warning(f"ensure_schema(ua cache) warning: {e}")
-                # autocommit=True, so no need to commit explicitly
-                cursor.close()
-                logger.info("Schema guard completed: attachments and ticket_attachments columns verified")
+                logger.info("Database schema ensured successfully")
         except Exception as e:
-            # Non-fatal: log and continue
-            logger.warning(f"Schema guard failed (non-fatal): {e}")
-            log_exception(logger, e, "_ensure_schema")
+            logger.error(f"Database schema check failed: {e}")
 
     def get_users_for_notification(self, event_types: list, mode: str) -> set:
         """
