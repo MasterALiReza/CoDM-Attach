@@ -1827,7 +1827,7 @@ class DatabasePostgresProxy(DatabasePostgres):
                 
                 # حذف نقش از admin_roles
                 cursor.execute("""
-                    DELETE FROM user_roles 
+                    DELETE FROM admin_roles 
                     WHERE user_id = %s AND role_id = %s
                 """, (user_id, role_id))
                 

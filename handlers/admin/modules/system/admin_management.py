@@ -809,8 +809,15 @@ class AdminManagementHandler(BaseAdminHandler):
             role = current_roles[0]
             lang = get_user_lang(update, context, self.db) or 'fa'
             name_line = display_name if display_name else f'`{admin_user_id}`'
+            
+            # Get role display name safely
+            if isinstance(role, str):
+                role_disp = t(f"roles.names.{role}", lang) or role
+            else:
+                role_disp = role.get('display_name') or t('common.unknown', lang)
+            
             msg = t("admin.admin_mgmt.delete_role.cannot_last.title", lang) + "\n\n"
-            msg += t("admin.admin_mgmt.delete_role.cannot_last.body", lang, name=name_line, role=role['display_name'])
+            msg += t("admin.admin_mgmt.delete_role.cannot_last.body", lang, name=name_line, role=role_disp)
             keyboard = [
                 [InlineKeyboardButton(t("admin.admin_mgmt.buttons.add_role_new", lang), callback_data=f"addrole_{admin_user_id}")],
                 [InlineKeyboardButton(t("admin.admin_mgmt.buttons.remove", lang), callback_data=f"remove_confirm_{admin_user_id}")],
@@ -931,9 +938,13 @@ class AdminManagementHandler(BaseAdminHandler):
         # ساخت لیست نقش‌های باقیمانده
         role_lines = []
         for r in remaining_roles:
-            role_lines.append(f"  {r['display_name']}")
+            if isinstance(r, str):
+                role_disp = t(f"roles.names.{r}", lang) or r
+            else:
+                role_disp = r.get('display_name') or t('common.unknown', lang)
+            role_lines.append(f"  {role_disp}")
         
-        msg = t("admin.admin_mgmt.del_role.title", lang) + "\n\n"
+        msg = t("admin.admin_mgmt.del_role.success.title", lang) + "\n\n"
         name_line = display_name if display_name else f'`{admin_user_id}`'
         msg += t("admin.admin_mgmt.labels.admin_line", lang, name=name_line, id=admin_user_id) + "\n\n"
         msg += t("admin.admin_mgmt.add_role.success.current_roles", lang, n=len(remaining_roles)) + "\n"
@@ -944,7 +955,7 @@ class AdminManagementHandler(BaseAdminHandler):
         keyboard = [
             [InlineKeyboardButton(t("admin.admin_mgmt.buttons.add_role_more", get_user_lang(update, context, self.db) or 'fa'), callback_data=f"addrole_{admin_user_id}")],
             [InlineKeyboardButton(t("admin.admin_mgmt.buttons.delete_role_more", get_user_lang(update, context, self.db) or 'fa'), callback_data=f"delrole_{admin_user_id}")],
-            [InlineKeyboardButton(t("admin.admin_mgmt.buttons.back_to_admins", get_user_lang(update, context, self.db) or 'fa'), callback_data="manage_admins")]
+            [InlineKeyboardButton(t("menu.buttons.back", get_user_lang(update, context, self.db) or 'fa'), callback_data="edit_admin_role")]
         ]
         
         await query.edit_message_text(
