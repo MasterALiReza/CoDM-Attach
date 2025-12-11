@@ -48,6 +48,16 @@ class Permission(str, Enum):
     MANAGE_CHANNELS = "manage_channels"
     MANAGE_ADMINS = "manage_admins"
     MANAGE_CATEGORIES = "manage_categories"
+    
+    # سایر دسترسی‌های عمومی (موجود در دیتابیس)
+    MANAGE_USERS = "manage_users"
+    MANAGE_ATTACHMENTS = "manage_attachments"
+    VIEW_ANALYTICS = "view_analytics"
+    MODERATE_CONTENT = "moderate_content"
+    MANAGE_REPORTS = "manage_reports"
+    MANAGE_TICKETS = "manage_tickets"
+    MANAGE_FAQS = "manage_faqs"
+    ALL = "all"
     MANAGE_SETTINGS = "manage_settings"
     
     # ارتباطات
