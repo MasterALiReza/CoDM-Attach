@@ -1,253 +1,337 @@
 #!/bin/bash
 
 # ============================================================================
-# CODM Bot Deployment Script for Ubuntu 24.04
+# CODM Bot - Advanced Deployment & Management Script
 # ============================================================================
-# This script installs dependencies, sets up the environment, and configures 
-# the bot as a systemd service.
+# این اسکریپت نصب، حذف، به‌روزرسانی و مدیریت کامل ربات را انجام می‌دهد
 #
-# Usage: sudo ./deploy.sh
+# Usage: sudo bash deploy.sh
 # ============================================================================
 
 set -e  # Exit on error
 
-# Colors for output
+# ============================================================================
+# Colors and Formatting
+# ============================================================================
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+MAGENTA='\033[0;35m'
+WHITE='\033[1;37m'
+NC='\033[0m'
 BOLD='\033[1m'
 
+# ============================================================================
 # Configuration
+# ============================================================================
+
 INSTALL_DIR="/opt/codm-bot"
 BOT_USER="codm-bot"
 SERVICE_NAME="codm-bot"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Default database credentials
+DEFAULT_DB_NAME="codm_bot_db"
+DEFAULT_DB_USER="codm_bot_user"
 
 # ============================================================================
-# Helper Functions
+# Utility Functions
 # ============================================================================
 
-print_header() {
+print_banner() {
+    clear
     echo -e "${CYAN}"
-    echo "╔════════════════════════════════════════════════════════════════╗"
-    echo "║                                                                ║"
-    echo "║    🎮 CODM Attachments Bot - Deployment Script                 ║"
-    echo "║                        Ubuntu 24.04                            ║"
-    echo "║                                                                ║"
-    echo "╚════════════════════════════════════════════════════════════════╝"
+    echo "╔════════════════════════════════════════════════════════════════════╗"
+    echo "║                                                                    ║"
+    echo "║    ${WHITE}🎮 CODM Attachments Bot - Management System${CYAN}                    ║"
+    echo "║                  ${YELLOW}نسخه پیشرفته و کامل${CYAN}                              ║"
+    echo "║                                                                    ║"
+    echo "╚════════════════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
 }
 
-print_step() {
-    echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${YELLOW}$1${NC}"
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+print_header() {
+    echo ""
+    echo -e "${BLUE}╔════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${BLUE}║${NC} ${BOLD}$1${NC}"
+    echo -e "${BLUE}╚════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
 }
 
-check_success() {
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✅ $1${NC}"
+print_step() {
+    echo ""
+    echo -e "${YELLOW}▶ $1${NC}"
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+print_info() {
+    echo -e "${CYAN}ℹ️  $1${NC}"
+}
+
+# Generate secure random password
+generate_password() {
+    openssl rand -base64 32 | tr -dc 'a-zA-Z0-9!@#$%^&*' | head -c 24
+}
+
+# Check if command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Confirm action
+confirm() {
+    local message="$1"
+    local default="${2:-n}"
+    
+    if [ "$default" = "y" ]; then
+        local prompt="[Y/n]"
     else
-        echo -e "${RED}❌ $1 failed${NC}"
+        local prompt="[y/N]"
+    fi
+    
+    echo -e -n "${YELLOW}$message $prompt: ${NC}"
+    read -r response
+    
+    response=${response:-$default}
+    
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Press any key to continue
+press_any_key() {
+    echo ""
+    echo -e "${CYAN}فشردن هر کلید برای ادامه...${NC}"
+    read -n 1 -s
+}
+
+# Check if running as root
+check_root() {
+    if [ "$EUID" -ne 0 ]; then 
+        print_error "این اسکریپت باید با دسترسی root اجرا شود"
+        echo -e "${YELLOW}لطفاً دستور را به صورت زیر اجرا کنید:${NC}"
+        echo -e "${WHITE}sudo bash deploy.sh${NC}"
         exit 1
     fi
 }
 
-generate_password() {
-    # Generate a secure random password
-    openssl rand -base64 24 | tr -dc 'a-zA-Z0-9!@#$%' | head -c 20
+# ============================================================================
+# Installation Functions
+# ============================================================================
+
+install_system_dependencies() {
+    print_header "نصب وابستگی‌های سیستم"
+    
+    print_step "به‌روزرسانی لیست پکیج‌ها..."
+    apt update -qq
+    print_success "لیست پکیج‌ها به‌روز شد"
+    
+    print_step "نصب Python و ابزارهای توسعه..."
+    apt install -y python3 python3-pip python3-venv python3-dev \
+        build-essential libpq-dev git curl wget openssl acl >/dev/null 2>&1
+    print_success "Python و ابزارهای توسعه نصب شد"
+    
+    print_step "نصب PostgreSQL..."
+    apt install -y postgresql postgresql-contrib >/dev/null 2>&1
+    systemctl start postgresql
+    systemctl enable postgresql >/dev/null 2>&1
+    print_success "PostgreSQL نصب و راه‌اندازی شد"
+    
+    print_step "نصب ابزارهای کمکی..."
+    apt install -y rsync htop nano vim >/dev/null 2>&1
+    print_success "ابزارهای کمکی نصب شد"
 }
 
-# ============================================================================
-# Pre-flight Checks
-# ============================================================================
-
-print_header
-
-# Check if running as root
-if [ "$EUID" -ne 0 ]; then 
-    echo -e "${RED}❌ Please run as root: sudo ./deploy.sh${NC}"
-    exit 1
-fi
-
-# Check if script is run from repo root
-if [ ! -f "main.py" ] || [ ! -f "requirements.txt" ]; then
-    echo -e "${RED}❌ Please run this script from the bot project root directory${NC}"
-    echo -e "${YELLOW}   The directory should contain main.py and requirements.txt${NC}"
-    exit 1
-fi
-
-echo -e "${GREEN}✅ Pre-flight checks passed${NC}"
-
-# ============================================================================
-# Step 1: System Update & Dependencies
-# ============================================================================
-
-print_step "[1/7] 📦 Installing System Dependencies..."
-
-apt update && apt upgrade -y
-apt install -y python3-pip python3-venv python3-dev \
-    postgresql postgresql-contrib \
-    git curl openssl acl \
-    libpq-dev build-essential
-
-check_success "System dependencies installed"
-
-# ============================================================================
-# Step 2: Create Bot User & Directory
-# ============================================================================
-
-print_step "[2/7] 👤 Setting Up Bot User & Directory..."
-
-# Create dedicated user if not exists
-if id "$BOT_USER" &>/dev/null; then
-    echo "User $BOT_USER already exists."
-else
-    useradd -r -m -s /bin/bash $BOT_USER
-    echo -e "${GREEN}✅ Created user: $BOT_USER${NC}"
-fi
-
-# Create install directory
-if [ -d "$INSTALL_DIR" ]; then
-    echo "Directory $INSTALL_DIR exists. Updating..."
-    # Backup existing .env if present
-    if [ -f "$INSTALL_DIR/.env" ]; then
-        cp "$INSTALL_DIR/.env" "$INSTALL_DIR/.env.backup.$(date +%Y%m%d%H%M%S)"
-        echo -e "${YELLOW}⚠️  Existing .env backed up${NC}"
+setup_database() {
+    print_header "راه‌اندازی دیتابیس PostgreSQL"
+    
+    echo -e "${WHITE}انتخاب نوع راه‌اندازی دیتابیس:${NC}"
+    echo ""
+    echo "  ${GREEN}1.${NC} راه‌اندازی خودکار (پیشنهادی) ${CYAN}← اطلاعات به صورت خودکار تولید می‌شود${NC}"
+    echo "  ${GREEN}2.${NC} راه‌اندازی سفارشی ${CYAN}← وارد کردن دستی اطلاعات${NC}"
+    echo "  ${GREEN}3.${NC} استفاده از دیتابیس موجود ${CYAN}← اتصال به دیتابیس خارجی${NC}"
+    echo ""
+    
+    read -p "$(echo -e ${YELLOW}انتخاب شما ${WHITE}[1/2/3]${YELLOW}: ${NC})" db_setup_choice
+    db_setup_choice=${db_setup_choice:-1}
+    
+    case $db_setup_choice in
+        1)
+            # Automatic setup
+            print_step "راه‌اندازی خودکار دیتابیس..."
+            
+            DB_NAME="$DEFAULT_DB_NAME"
+            DB_USER="$DEFAULT_DB_USER"
+            DB_PASS=$(generate_password)
+            DB_HOST="localhost"
+            DB_PORT="5432"
+            
+            print_info "نام دیتابیس: ${WHITE}$DB_NAME${NC}"
+            print_info "کاربر دیتابیس: ${WHITE}$DB_USER${NC}"
+            print_info "رمز عبور: ${WHITE}$DB_PASS${NC}"
+            ;;
+            
+        2)
+            # Custom setup
+            print_step "راه‌اندازی سفارشی دیتابیس..."
+            
+            read -p "$(echo -e ${CYAN}نام دیتابیس ${WHITE}[$DEFAULT_DB_NAME]${CYAN}: ${NC})" DB_NAME
+            DB_NAME=${DB_NAME:-$DEFAULT_DB_NAME}
+            
+            read -p "$(echo -e ${CYAN}نام کاربر ${WHITE}[$DEFAULT_DB_USER]${CYAN}: ${NC})" DB_USER
+            DB_USER=${DB_USER:-$DEFAULT_DB_USER}
+            
+            read -sp "$(echo -e ${CYAN}رمز عبور ${YELLOW}(خالی = تولید خودکار)${CYAN}: ${NC})" DB_PASS
+            echo ""
+            
+            if [ -z "$DB_PASS" ]; then
+                DB_PASS=$(generate_password)
+                print_info "رمز عبور تولید شد: ${WHITE}$DB_PASS${NC}"
+            fi
+            
+            DB_HOST="localhost"
+            DB_PORT="5432"
+            ;;
+            
+        3)
+            # External database
+            print_step "اتصال به دیتابیس خارجی..."
+            
+            read -p "$(echo -e ${CYAN}آدرس دیتابیس CONNECTION STRING: ${NC})" DATABASE_URL
+            
+            if [[ "$DATABASE_URL" =~ postgresql://([^:]+):([^@]+)@([^:/]+):?([0-9]*)/(.+) ]]; then
+                DB_USER="${BASH_REMATCH[1]}"
+                DB_PASS="${BASH_REMATCH[2]}"
+                DB_HOST="${BASH_REMATCH[3]}"
+                DB_PORT="${BASH_REMATCH[4]:-5432}"
+                DB_NAME="${BASH_REMATCH[5]}"
+                
+                print_success "اطلاعات دیتابیس استخراج شد"
+                return 0
+            else
+                print_error "فرمت CONNECTION STRING نامعتبر است"
+                exit 1
+            fi
+            ;;
+            
+        *)
+            print_error "گزینه نامعتبر"
+            exit 1
+            ;;
+    esac
+    
+    # Create database and user (for options 1 and 2)
+    if [ "$db_setup_choice" != "3" ]; then
+        print_step "ایجاد کاربر و دیتابیس..."
+        
+        # Drop existing if confirm
+        if sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
+            print_warning "دیتابیس $DB_NAME از قبل وجود دارد"
+            if confirm "آیا می‌خواهید دیتابیس موجود را حذف و مجدداً ایجاد کنید؟" "n"; then
+                sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME;" >/dev/null 2>&1
+                sudo -u postgres psql -c "DROP USER IF EXISTS $DB_USER;" >/dev/null 2>&1
+                print_success "دیتابیس قدیمی حذف شد"
+            else
+                print_info "از دیتابیس موجود استفاده می‌شود"
+            fi
+        fi
+        
+        # Create user
+        if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+            sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';" >/dev/null
+            print_success "کاربر $DB_USER ایجاد شد"
+        fi
+        
+        sudo -u postgres psql -c "ALTER USER $DB_USER WITH CREATEDB;" >/dev/null
+        
+        # Create database
+        if ! sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
+            sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER ENCODING 'UTF8';" >/dev/null
+            print_success "دیتابیس $DB_NAME ایجاد شد"
+        fi
+        
+        sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;" >/dev/null
+        
+        # Setup schema
+        if [ -f "$INSTALL_DIR/scripts/setup_database.sql" ]; then
+            print_step "راه‌اندازی جداول دیتابیس..."
+            PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" \
+                -f "$INSTALL_DIR/scripts/setup_database.sql" >/dev/null 2>&1
+            print_success "جداول دیتابیس ایجاد شد"
+        fi
     fi
-else
-    mkdir -p $INSTALL_DIR
-    echo -e "${GREEN}✅ Created directory: $INSTALL_DIR${NC}"
-fi
+    
+    DATABASE_URL="postgresql://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/$DB_NAME"
+    print_success "دیتابیس به طور کامل راه‌اندازی شد"
+}
 
-# Copy project files
-echo "Copying project files..."
-rsync -av --exclude='.git' --exclude='__pycache__' --exclude='*.pyc' \
-    --exclude='.env' --exclude='venv' --exclude='.agent_venv' \
-    --exclude='logs/*' --exclude='backups/*' \
-    . "$INSTALL_DIR/"
-
-chown -R $BOT_USER:$BOT_USER "$INSTALL_DIR"
-chmod 750 "$INSTALL_DIR"
-
-check_success "Project files installed"
-
-# ============================================================================
-# Step 3: Python Virtual Environment
-# ============================================================================
-
-print_step "[3/7] 🐍 Setting Up Python Environment..."
-
-cd "$INSTALL_DIR"
-
-# Create virtual environment
-sudo -u $BOT_USER python3 -m venv venv
-check_success "Virtual environment created"
-
-# Upgrade pip and install dependencies
-sudo -u $BOT_USER "$INSTALL_DIR/venv/bin/pip" install --upgrade pip wheel setuptools
-sudo -u $BOT_USER "$INSTALL_DIR/venv/bin/pip" install -r requirements.txt
-check_success "Python dependencies installed"
-
-# ============================================================================
-# Step 4: Database Configuration
-# ============================================================================
-
-print_step "[4/7] 🗄️ Configuring PostgreSQL Database..."
-
-# Ensure PostgreSQL is running
-systemctl start postgresql
-systemctl enable postgresql
-
-echo ""
-echo -e "${CYAN}Database Setup Options:${NC}"
-echo "  1. Create new local database (recommended for first install)"
-echo "  2. Use existing database connection string"
-echo ""
-read -p "Select option (1 or 2): " DB_OPTION
-
-if [ "$DB_OPTION" == "1" ]; then
-    # Local database setup
+setup_bot_config() {
+    print_header "تنظیمات ربات تلگرام"
+    
+    # Bot Token
+    echo -e "${WHITE}توکن ربات تلگرام:${NC}"
+    echo -e "${CYAN}💡 برای دریافت توکن به @BotFather مراجعه کنید${NC}"
     echo ""
-    read -p "Database name [codm_bot_db]: " DB_NAME
-    DB_NAME=${DB_NAME:-codm_bot_db}
     
-    read -p "Database user [codm_bot_user]: " DB_USER
-    DB_USER=${DB_USER:-codm_bot_user}
+    while true; do
+        read -p "$(echo -e ${YELLOW}توکن ربات: ${NC})" BOT_TOKEN
+        
+        if [ -z "$BOT_TOKEN" ]; then
+            print_error "توکن نمی‌تواند خالی باشد"
+        elif [[ ! "$BOT_TOKEN" =~ ^[0-9]+:[A-Za-z0-9_-]+$ ]]; then
+            print_error "فرمت توکن نامعتبر است"
+        else
+            break
+        fi
+    done
     
-    # Generate secure random password
-    DB_PASS=$(generate_password)
-    echo -e "${YELLOW}Generated secure password for database user${NC}"
+    print_success "توکن ربات ثبت شد"
     
+    # Admin ID
     echo ""
-    echo -e "${CYAN}Creating database and user...${NC}"
-    
-    # Create user and database
-    sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME;" 2>/dev/null || true
-    sudo -u postgres psql -c "DROP USER IF EXISTS $DB_USER;" 2>/dev/null || true
-    
-    sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
-    sudo -u postgres psql -c "ALTER USER $DB_USER WITH CREATEDB;"
-    sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER ENCODING 'UTF8';"
-    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
-    
-    check_success "Database user and database created"
-    
-    # Run schema setup
-    echo -e "${CYAN}Setting up database schema...${NC}"
-    
-    # Connect to the new database and run setup script
-    PGPASSWORD="$DB_PASS" psql -h localhost -U "$DB_USER" -d "$DB_NAME" -f "$INSTALL_DIR/scripts/setup_database.sql"
-    
-    check_success "Database schema created"
-    
-    DATABASE_URL="postgresql://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME"
-    
-else
-    # Existing database
+    echo -e "${WHITE}شناسه ادمین اصلی (Super Admin):${NC}"
+    echo -e "${CYAN}💡 برای دریافت ID خود به @userinfobot مراجعه کنید${NC}"
     echo ""
-    read -p "Enter PostgreSQL connection string: " DATABASE_URL
     
-    # Extract user for ownership commands
-    if [[ "$DATABASE_URL" =~ postgresql://([^:]+):([^@]+)@([^/]+)/(.+) ]]; then
-        DB_USER="${BASH_REMATCH[1]}"
-        DB_PASS="${BASH_REMATCH[2]}"
-        DB_HOST="${BASH_REMATCH[3]}"
-        DB_NAME="${BASH_REMATCH[4]}"
-    fi
-fi
+    while true; do
+        read -p "$(echo -e ${YELLOW}Telegram User ID: ${NC})" SUPER_ADMIN_ID
+        
+        if [ -z "$SUPER_ADMIN_ID" ]; then
+            print_error "ID نمی‌تواند خالی باشد"
+        elif [[ ! "$SUPER_ADMIN_ID" =~ ^[0-9]+$ ]]; then
+            print_error "ID باید یک عدد باشد"
+        else
+            break
+        fi
+    done
+    
+    print_success "ادمین اصلی تنظیم شد"
+}
 
-echo -e "${GREEN}✅ Database configured${NC}"
-
-# ============================================================================
-# Step 5: Bot Configuration
-# ============================================================================
-
-print_step "[5/7] ⚙️ Configuring Bot..."
-
-echo ""
-read -p "Enter Telegram Bot Token (from @BotFather): " BOT_TOKEN
-
-while [ -z "$BOT_TOKEN" ]; do
-    echo -e "${RED}Bot token is required!${NC}"
-    read -p "Enter Telegram Bot Token: " BOT_TOKEN
-done
-
-echo ""
-read -p "Enter Super Admin Telegram ID (your numeric ID): " SUPER_ADMIN_ID
-
-while ! [[ "$SUPER_ADMIN_ID" =~ ^[0-9]+$ ]]; do
-    echo -e "${RED}Invalid ID. Must be a number!${NC}"
-    read -p "Enter Super Admin Telegram ID: " SUPER_ADMIN_ID
-done
-
-# Create .env file
-cat > "$INSTALL_DIR/.env" <<EOF
+create_env_file() {
+    print_step "ایجاد فایل تنظیمات (.env)..."
+    
+    cat > "$INSTALL_DIR/.env" <<EOF
 # ============================================================================
 # CODM Bot Configuration
-# Generated: $(date)
+# تاریخ ایجاد: $(date '+%Y-%m-%d %H:%M:%S')
 # ============================================================================
 
 # Telegram Bot
@@ -258,12 +342,19 @@ SUPER_ADMIN_ID=$SUPER_ADMIN_ID
 DATABASE_URL=$DATABASE_URL
 DATABASE_BACKEND=postgres
 
-# Connection Pool
+# PostgreSQL Connection Details
+POSTGRES_HOST=$DB_HOST
+POSTGRES_PORT=$DB_PORT
+POSTGRES_DB=$DB_NAME
+POSTGRES_USER=$DB_USER
+POSTGRES_PASSWORD=$DB_PASS
+
+# Connection Pool Settings
 DB_POOL_SIZE=20
 DB_POOL_MAX_OVERFLOW=10
 DB_POOL_TIMEOUT=30
 
-# Language
+# Language Settings
 DEFAULT_LANG=fa
 SUPPORTED_LANGS=fa,en
 FALLBACK_LANG=en
@@ -276,26 +367,27 @@ DEBUG_MODE=false
 CACHE_ENABLED=true
 LOG_SLOW_QUERIES=true
 SLOW_QUERY_THRESHOLD=100
+
+# Logging
+LOG_LEVEL=INFO
+LOG_FILE=logs/bot.log
 EOF
 
-chown $BOT_USER:$BOT_USER "$INSTALL_DIR/.env"
-chmod 600 "$INSTALL_DIR/.env"
+    chown $BOT_USER:$BOT_USER "$INSTALL_DIR/.env"
+    chmod 600 "$INSTALL_DIR/.env"
+    
+    print_success "فایل تنظیمات ایجاد شد"
+}
 
-check_success "Configuration file created"
-
-# ============================================================================
-# Step 6: Add Super Admin to Database
-# ============================================================================
-
-print_step "[6/7] 👑 Setting Up Super Admin..."
-
-# Add super admin to database
-PGPASSWORD="$DB_PASS" psql -h localhost -U "$DB_USER" -d "$DB_NAME" <<EOF
--- Insert super admin into users table
+setup_super_admin() {
+    print_step "اضافه کردن Super Admin به دیتابیس..."
+    
+    PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" <<EOF >/dev/null 2>&1
+-- Insert user
 INSERT INTO users (user_id) VALUES ($SUPER_ADMIN_ID)
 ON CONFLICT (user_id) DO NOTHING;
 
--- Insert into admins table
+-- Insert admin
 INSERT INTO admins (user_id, is_active) VALUES ($SUPER_ADMIN_ID, TRUE)
 ON CONFLICT (user_id) DO UPDATE SET is_active = TRUE;
 
@@ -304,17 +396,83 @@ INSERT INTO admin_roles (user_id, role_id)
 SELECT $SUPER_ADMIN_ID, id FROM roles WHERE name = 'super_admin'
 ON CONFLICT DO NOTHING;
 EOF
+    
+    print_success "Super Admin به دیتابیس اضافه شد"
+}
 
-check_success "Super admin configured"
-
-# ============================================================================
-# Step 7: Systemd Service & CLI Tool
-# ============================================================================
-
-print_step "[7/7] 🚀 Setting Up Service & Management Tools..."
-
-# Create systemd service
-cat > "/etc/systemd/system/$SERVICE_NAME.service" <<EOF
+install_bot() {
+    print_banner
+    print_header "نصب ربات CODM Attachments"
+    
+    # Check if already installed
+    if systemctl is-active --quiet $SERVICE_NAME; then
+        print_warning "ربات در حال حاضر نصب و در حال اجرا است"
+        if ! confirm "آیا می‌خواهید نصب مجدد انجام شود؟" "n"; then
+            return
+        fi
+        systemctl stop $SERVICE_NAME
+    fi
+    
+    # Step 1: Install system dependencies
+    if confirm "آیا می‌خواهید وابستگی‌های سیستم نصب شوند؟ (PostgreSQL, Python, ...)" "y"; then
+        install_system_dependencies
+    else
+        print_warning "نصب وابستگی‌ها رد شد"
+    fi
+    
+    # Step 2: Create user and directory
+    print_header "ایجاد کاربر و دایرکتوری"
+    
+    if ! id "$BOT_USER" &>/dev/null; then
+        useradd -r -m -s /bin/bash $BOT_USER
+        print_success "کاربر $BOT_USER ایجاد شد"
+    else
+        print_info "کاربر $BOT_USER از قبل وجود دارد"
+    fi
+    
+    mkdir -p "$INSTALL_DIR"
+    
+    # Copy files
+    print_step "کپی کردن فایل‌های پروژه..."
+    rsync -av --exclude='.git' --exclude='__pycache__' --exclude='*.pyc' \
+        --exclude='.env' --exclude='venv' --exclude='.agent_venv' \
+        --exclude='logs/*' --exclude='backups/*' \
+        "$SCRIPT_DIR/" "$INSTALL_DIR/" >/dev/null
+    
+    chown -R $BOT_USER:$BOT_USER "$INSTALL_DIR"
+    chmod 750 "$INSTALL_DIR"
+    print_success "فایل‌های پروژه کپی شد"
+    
+    # Step 3: Python environment
+    print_header "راه‌اندازی محیط Python"
+    
+    cd "$INSTALL_DIR"
+    
+    print_step "ایجاد محیط مجازی Python..."
+    sudo -u $BOT_USER python3 -m venv venv
+    print_success "محیط مجازی ایجاد شد"
+    
+    print_step "نصب کتابخانه‌های Python..."
+    sudo -u $BOT_USER "$INSTALL_DIR/venv/bin/pip" install --upgrade pip wheel setuptools >/dev/null 2>&1
+    sudo -u $BOT_USER "$INSTALL_DIR/venv/bin/pip" install -r requirements.txt >/dev/null 2>&1
+    print_success "کتابخانه‌های Python نصب شد"
+    
+    # Step 4: Database setup
+    setup_database
+    
+    # Step 5: Bot configuration
+    setup_bot_config
+    
+    # Step 6: Create .env file
+    create_env_file
+    
+    # Step 7: Setup super admin
+    setup_super_admin
+    
+    # Step 8: Create systemd service
+    print_header "راه‌اندازی سرویس Systemd"
+    
+    cat > "/etc/systemd/system/$SERVICE_NAME.service" <<EOF
 [Unit]
 Description=CODM Attachments Telegram Bot
 After=network.target postgresql.service
@@ -332,7 +490,7 @@ StandardOutput=journal
 StandardError=journal
 EnvironmentFile=$INSTALL_DIR/.env
 
-# Security hardening
+# Security
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
@@ -342,53 +500,390 @@ PrivateTmp=true
 [Install]
 WantedBy=multi-user.target
 EOF
-
-# Reload systemd
-systemctl daemon-reload
-systemctl enable $SERVICE_NAME
-
-check_success "Systemd service created"
-
-# Install wx-attach CLI tool
-cp "$INSTALL_DIR/scripts/wx-attach" /usr/local/bin/wx-attach
-chmod +x /usr/local/bin/wx-attach
-
-check_success "Management CLI (wx-attach) installed"
-
-# Create log and backup directories
-mkdir -p "$INSTALL_DIR/logs" "$INSTALL_DIR/backups"
-chown -R $BOT_USER:$BOT_USER "$INSTALL_DIR/logs" "$INSTALL_DIR/backups"
+    
+    systemctl daemon-reload
+    systemctl enable $SERVICE_NAME >/dev/null 2>&1
+    print_success "سرویس systemd ایجاد شد"
+    
+    # Step 9: Create directories
+    mkdir -p "$INSTALL_DIR/logs" "$INSTALL_DIR/backups"
+    chown -R $BOT_USER:$BOT_USER "$INSTALL_DIR/logs" "$INSTALL_DIR/backups"
+    
+    # Installation complete
+    echo ""
+    print_success "🎉 نصب با موفقیت انجام شد!"
+    echo ""
+    
+    if confirm "آیا می‌خواهید ربات الان شروع شود؟" "y"; then
+        systemctl start $SERVICE_NAME
+        sleep 2
+        if systemctl is-active --quiet $SERVICE_NAME; then
+            print_success "ربات با موفقیت شروع شد"
+            echo ""
+            echo -e "${CYAN}برای مشاهده لاگ‌ها: ${WHITE}journalctl -u $SERVICE_NAME -f${NC}"
+        else
+            print_error "خطا در شروع ربات"
+            echo -e "${YELLOW}برای مشاهده خطا: ${WHITE}systemctl status $SERVICE_NAME${NC}"
+        fi
+    fi
+    
+    press_any_key
+}
 
 # ============================================================================
-# Completion
+# Uninstall Function
 # ============================================================================
 
-echo ""
-echo -e "${GREEN}"
-echo "╔════════════════════════════════════════════════════════════════╗"
-echo "║                                                                ║"
-echo "║        🎉 Deployment Complete! 🎉                              ║"
-echo "║                                                                ║"
-echo "╚════════════════════════════════════════════════════════════════╝"
-echo -e "${NC}"
+uninstall_bot() {
+    print_banner
+    print_header "حذف ربات CODM Attachments"
+    
+    print_warning "این عملیات تمام فایل‌ها و تنظیمات ربات را حذف می‌کند"
+    print_warning "دیتابیس و کاربر PostgreSQL نیز حذف خواهند شد"
+    echo ""
+    
+    if ! confirm "آیا مطمئن هستید که می‌خواهید ربات را حذف کنید?" "n"; then
+        print_info "عملیات لغو شد"
+        press_any_key
+        return
+    fi
+    
+    echo ""
+    if ! confirm "آیا واقعاً مطمئن هستید؟ این عملیات قابل بازگشت نیست!" "n"; then
+        print_info "عملیات لغو شد"
+        press_any_key
+        return
+    fi
+    
+    print_step "توقف سرویس..."
+    if systemctl is-active --quiet $SERVICE_NAME; then
+        systemctl stop $SERVICE_NAME
+        print_success "سرویس متوقف شد"
+    fi
+    
+    systemctl disable $SERVICE_NAME >/dev/null 2>&1 || true
+    
+    print_step "حذف سرویس systemd..."
+    rm -f "/etc/systemd/system/$SERVICE_NAME.service"
+    systemctl daemon-reload
+    print_success "سرویس حذف شد"
+    
+    # Backup before delete
+    if [ -d "$INSTALL_DIR" ]; then
+        print_step "ایجاد بکاپ قبل از حذف..."
+        backup_dir="/tmp/codm-bot-backup-$(date +%Y%m%d_%H%M%S)"
+        mkdir -p "$backup_dir"
+        
+        if [ -f "$INSTALL_DIR/.env" ]; then
+            cp "$INSTALL_DIR/.env" "$backup_dir/"
+        fi
+        
+        if [ -d "$INSTALL_DIR/logs" ]; then
+            cp -r "$INSTALL_DIR/logs" "$backup_dir/" 2>/dev/null || true
+        fi
+        
+        print_success "بکاپ ایجاد شد: $backup_dir"
+    fi
+    
+    print_step "حذف فایل‌های نصب..."
+    rm -rf "$INSTALL_DIR"
+    print_success "فایل‌ها حذف شد"
+    
+    print_step "حذف کاربر سیستم..."
+    if id "$BOT_USER" &>/dev/null; then
+        userdel -r $BOT_USER 2>/dev/null || true
+        print_success "کاربر حذف شد"
+    fi
+    
+    # Database removal
+    if confirm "آیا می‌خواهید دیتابیس و کاربر PostgreSQL هم حذف شوند?" "n"; then
+        print_step "حذف دیتابیس..."
+        sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DEFAULT_DB_NAME;" 2>/dev/null || true
+        sudo -u postgres psql -c "DROP USER IF EXISTS $DEFAULT_DB_USER;" 2>/dev/null || true
+        print_success "دیتابیس حذف شد"
+    fi
+    
+    echo ""
+    print_success "ربات به طور کامل حذف شد"
+    
+    if [ -d "$backup_dir" ]; then
+        echo ""
+        print_info "فایل‌های بکاپ در: $backup_dir"
+    fi
+    
+    press_any_key
+}
 
-echo -e "${WHITE}Installation Summary:${NC}"
-echo -e "  📁 Install Directory: ${CYAN}$INSTALL_DIR${NC}"
-echo -e "  👤 Bot User: ${CYAN}$BOT_USER${NC}"
-echo -e "  🗄️ Database: ${CYAN}$DB_NAME${NC}"
-echo -e "  👑 Super Admin ID: ${CYAN}$SUPER_ADMIN_ID${NC}"
-echo ""
-echo -e "${WHITE}Quick Commands:${NC}"
-echo -e "  ${GREEN}wx-attach${NC}              - Open management menu"
-echo -e "  ${GREEN}wx-attach start${NC}        - Start the bot"
-echo -e "  ${GREEN}wx-attach status${NC}       - Check bot status"
-echo -e "  ${GREEN}wx-attach logs${NC}         - View bot logs"
-echo ""
-echo -e "${WHITE}Or use systemctl:${NC}"
-echo -e "  ${YELLOW}systemctl start $SERVICE_NAME${NC}"
-echo -e "  ${YELLOW}systemctl status $SERVICE_NAME${NC}"
-echo -e "  ${YELLOW}journalctl -u $SERVICE_NAME -f${NC}"
-echo ""
-echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}Ready to start? Run: ${BOLD}wx-attach start${NC}"
-echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+# ============================================================================
+# Update Function
+# ============================================================================
+
+update_bot() {
+    print_banner
+    print_header "به‌روزرسانی ربات"
+    
+    if [ ! -d "$INSTALL_DIR" ]; then
+        print_error "ربات نصب نشده است"
+        press_any_key
+        return
+    fi
+    
+    print_step "بررسی وضعیت Git..."
+    
+    cd "$SCRIPT_DIR"
+    
+    if [ ! -d ".git" ]; then
+        print_warning "این یک مخزن Git نیست"
+        print_info "فایل‌ها به صورت دستی کپی می‌شوند"
+    else
+        print_step "دریافت آخرین تغییرات از GitHub..."
+        git fetch origin
+        
+        LOCAL=$(git rev-parse @)
+        REMOTE=$(git rev-parse @{u})
+        
+        if [ $LOCAL = $REMOTE ]; then
+            print_info "شما از آخرین نسخه استفاده می‌کنید"
+            if ! confirm "آیا می‌خواهید به هر حال فایل‌ها کپی شوند؟" "n"; then
+                press_any_key
+                return
+            fi
+        else
+            print_info "نسخه جدید موجود است"
+            git pull
+            print_success "کد به‌روز شد"
+        fi
+    fi
+    
+    # Backup .env
+    if [ -f "$INSTALL_DIR/.env" ]; then
+        cp "$INSTALL_DIR/.env" "$INSTALL_DIR/.env.backup.$(date +%Y%m%d_%H%M%S)"
+        print_success "فایل .env بکاپ شد"
+    fi
+    
+    # Stop service
+    if systemctl is-active --quiet $SERVICE_NAME; then
+        print_step "توقف موقت سرویس..."
+        systemctl stop $SERVICE_NAME
+    fi
+    
+    # Copy new files
+    print_step "کپی کردن فایل‌های جدید..."
+    rsync -av --exclude='.git' --exclude='__pycache__' --exclude='*.pyc' \
+        --exclude='.env' --exclude='venv' --exclude='.agent_venv' \
+        --exclude='logs/*' --exclude='backups/*' \
+        "$SCRIPT_DIR/" "$INSTALL_DIR/" >/dev/null
+    
+    chown -R $BOT_USER:$BOT_USER "$INSTALL_DIR"
+    print_success "فایل‌ها به‌روز شد"
+    
+    # Update Python dependencies
+    print_step "به‌روزرسانی کتابخانه‌های Python..."
+    sudo -u $BOT_USER "$INSTALL_DIR/venv/bin/pip" install --upgrade pip >/dev/null 2>&1
+    sudo -u $BOT_USER "$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt" --upgrade >/dev/null 2>&1
+    print_success "کتابخانه‌ها به‌روز شد"
+    
+    # Restart service
+    print_step "راه‌اندازی مجدد سرویس..."
+    systemctl start $SERVICE_NAME
+    sleep 2
+    
+    if systemctl is-active --quiet $SERVICE_NAME; then
+        print_success "ربات با موفقیت به‌روز و راه‌اندازی شد"
+    else
+        print_error "خطا در راه‌اندازی ربات"
+        echo -e "${YELLOW}برای بررسی: ${WHITE}systemctl status $SERVICE_NAME${NC}"
+    fi
+    
+    press_any_key
+}
+
+# ============================================================================
+# Backup & Restore Functions
+# ============================================================================
+
+backup_bot() {
+    print_banner
+    print_header "بکاپ از ربات و دیتابیس"
+    
+    backup_dir="/opt/codm-bot-backups"
+    mkdir -p "$backup_dir"
+    
+    timestamp=$(date +%Y%m%d_%H%M%S)
+    backup_name="codm-bot-backup-$timestamp"
+    backup_path="$backup_dir/$backup_name"
+    
+    print_step "ایجاد پوشه بکاپ..."
+    mkdir -p "$backup_path"
+    
+    # Backup .env
+    if [ -f "$INSTALL_DIR/.env" ]; then
+        print_step "بکاپ فایل تنظیمات..."
+        cp "$INSTALL_DIR/.env" "$backup_path/"
+        print_success "فایل .env بکاپ شد"
+    fi
+    
+    # Backup database
+    if [ -f "$INSTALL_DIR/.env" ]; then
+        source "$INSTALL_DIR/.env"
+        
+        print_step "بکاپ دیتابیس..."
+        
+        if [ -n "$POSTGRES_USER" ] && [ -n "$POSTGRES_DB" ]; then
+            PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -h "${POSTGRES_HOST:-localhost}" \
+                -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+                > "$backup_path/database.sql" 2>/dev/null
+            
+            if [ $? -eq 0 ]; then
+                print_success "دیتابیس بکاپ شد"
+            else
+                print_warning "خطا در بکاپ دیتابیس"
+            fi
+        fi
+    fi
+    
+    # Create archive
+    print_step "فشرده‌سازی بکاپ..."
+    cd "$backup_dir"
+    tar -czf "${backup_name}.tar.gz" "$backup_name" 2>/dev/null
+    rm -rf "$backup_name"
+    
+    print_success "بکاپ با موفقیت ایجاد شد"
+    echo ""
+    print_info "مسیر بکاپ: ${WHITE}$backup_dir/${backup_name}.tar.gz${NC}"
+    
+    press_any_key
+}
+
+# ============================================================================
+# Status & Logs Functions
+# ============================================================================
+
+show_status() {
+    print_banner
+    print_header "وضعیت ربات"
+    
+    echo -e "${WHITE}سرویس Systemd:${NC}"
+    systemctl status $SERVICE_NAME --no-pager -l
+    
+    echo ""
+    echo -e "${WHITE}دیسک:${NC}"
+    df -h "$INSTALL_DIR" 2>/dev/null || df -h /
+    
+    echo ""
+    echo -e "${WHITE}حافظه:${NC}"
+    free -h
+    
+    press_any_key
+}
+
+show_logs() {
+    print_banner
+    print_header "لاگ‌های ربات"
+    
+    echo -e "${CYAN}در حال نمایش 50 خط آخر لاگ...${NC}"
+    echo -e "${YELLOW}برای خروج Ctrl+C را فشار دهید${NC}"
+    echo ""
+    
+    journalctl -u $SERVICE_NAME -n 50 --no-pager
+    
+    echo ""
+    if confirm "آیا می‌خواهید لاگ‌های زنده را مشاهده کنید؟" "y"; then
+        journalctl -u $SERVICE_NAME -f
+    fi
+}
+
+# ============================================================================
+# Main Menu
+# ============================================================================
+
+show_main_menu() {
+    while true; do
+        print_banner
+        
+        # Show status indicator
+        if systemctl is-active --quiet $SERVICE_NAME; then
+            status_icon="${GREEN}●${NC}"
+            status_text="${GREEN}در حال اجرا${NC}"
+        else
+            status_icon="${RED}●${NC}"
+            status_text="${RED}غیرفعال${NC}"
+        fi
+        
+        echo -e "  وضعیت ربات: $status_icon $status_text"
+        echo ""
+        echo -e "${CYAN}╔════════════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${CYAN}║${NC}                      ${BOLD}منوی اصلی${NC}                                    ${CYAN}║${NC}"
+        echo -e "${CYAN}╠════════════════════════════════════════════════════════════════════╣${NC}"
+        echo -e "${CYAN}║${NC}                                                                    ${CYAN}║${NC}"
+        echo -e "${CYAN}║${NC}  ${GREEN}1.${NC} نصب ربات ${YELLOW}(نصب کامل از صفر)${NC}                              ${CYAN}║${NC}"
+        echo -e "${CYAN}║${NC}  ${GREEN}2.${NC} حذف ربات ${RED}(حذف کامل ربات و تنظیمات)${NC}                      ${CYAN}║${NC}"
+        echo -e "${CYAN}║${NC}  ${GREEN}3.${NC} به‌روزرسانی ربات ${CYAN}(دریافت آخرین نسخه)${NC}                     ${CYAN}║${NC}"
+        echo -e "${CYAN}║${NC}  ${GREEN}4.${NC} شروع ربات                                                   ${CYAN}║${NC}"
+        echo -e "${CYAN}║${NC}  ${GREEN}5.${NC} توقف ربات                                                    ${CYAN}║${NC}"
+        echo -e "${CYAN}║${NC}  ${GREEN}6.${NC} ری‌استارت ربات                                               ${CYAN}║${NC}"
+        echo -e "${CYAN}║${NC}  ${GREEN}7.${NC} وضعیت ربات ${BLUE}(مشاهده وضعیت سرویس)${NC}                        ${CYAN}║${NC}"
+        echo -e "${CYAN}║${NC}  ${GREEN}8.${NC} مشاهده لاگ‌ها                                                ${CYAN}║${NC}"
+        echo -e "${CYAN}║${NC}  ${GREEN}9.${NC} بکاپ ${MAGENTA}(بکاپ از دیتابیس و تنظیمات)${NC}                    ${CYAN}║${NC}"
+        echo -e "${CYAN}║${NC}  ${GREEN}0.${NC} خروج                                                         ${CYAN}║${NC}"
+        echo -e "${CYAN}║${NC}                                                                    ${CYAN}║${NC}"
+        echo -e "${CYAN}╚════════════════════════════════════════════════════════════════════╝${NC}"
+        echo ""
+        
+        read -p "$(echo -e ${YELLOW}انتخاب شما ${WHITE}[0-9]${YELLOW}: ${NC})" choice
+        
+        case $choice in
+            1) install_bot ;;
+            2) uninstall_bot ;;
+            3) update_bot ;;
+            4)
+                print_step "شروع ربات..."
+                systemctl start $SERVICE_NAME
+                sleep 1
+                if systemctl is-active --quiet $SERVICE_NAME; then
+                    print_success "ربات شروع شد"
+                else
+                    print_error "خطا در شروع ربات"
+                fi
+                press_any_key
+                ;;
+            5)
+                print_step "توقف ربات..."
+                systemctl stop $SERVICE_NAME
+                sleep 1
+                print_success "ربات متوقف شد"
+                press_any_key
+                ;;
+            6)
+                print_step "ری‌استارت ربات..."
+                systemctl restart $SERVICE_NAME
+                sleep 2
+                if systemctl is-active --quiet $SERVICE_NAME; then
+                    print_success "ربات ری‌استارت شد"
+                else
+                    print_error "خطا در ری‌استارت"
+                fi
+                press_any_key
+                ;;
+            7) show_status ;;
+            8) show_logs ;;
+            9) backup_bot ;;
+            0)
+                clear
+                echo -e "${GREEN}خداحافظ! 👋${NC}"
+                exit 0
+                ;;
+            *)
+                print_error "گزینه نامعتبر"
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+# ============================================================================
+# Entry Point
+# ============================================================================
+
+check_root
+show_main_menu
