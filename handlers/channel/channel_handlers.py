@@ -390,6 +390,11 @@ async def add_channel_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     channel_id = update.message.text.strip()
     logger.info(f"[channel] Received channel ID: {channel_id} from user={update.effective_user.id}")
     
+    # اگر کاربر لینک فرستاد، سعی کنیم یوزرنیم را استخراج کنیم
+    if channel_id.startswith("https://t.me/"):
+        channel_id = "@" + channel_id.split("/")[-1]
+        logger.info(f"[channel] Extracted username from URL: {channel_id}")
+    
     # اعتبارسنجی دقیق آیدی کانال
     from utils.validators import validate_channel_id
     is_valid, error_or_value = validate_channel_id(channel_id)
@@ -1595,6 +1600,7 @@ def get_channel_management_handler():
             ]
         },
         fallbacks=[
+            CallbackQueryHandler(channel_management_menu, pattern="^channel_management$"),
             CallbackQueryHandler(cancel, pattern="^channel_menu$"),
             # بازگشت به منوی ادمین و پایان این مکالمه
             CallbackQueryHandler(return_to_admin_menu, pattern="^ch_admin_return$"),
