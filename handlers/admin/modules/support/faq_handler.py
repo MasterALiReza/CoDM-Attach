@@ -98,7 +98,7 @@ class FAQHandler(BaseAdminHandler):
         faqs, _ = self._get_cached_faqs(faq_lang)
         
         if not faqs:
-            text = t("admin.faq.list.empty_lang", ui_lang, lang=faq_lang)
+            text = t("admin.faq.list.empty_lang", ui_lang, faq_lang_name=faq_lang)
             keyboard = [
                 [InlineKeyboardButton(t("admin.faq.buttons.add", ui_lang), callback_data="adm_faq_add")],
                 [InlineKeyboardButton(t("admin.faq.lang.fa", ui_lang), callback_data="adm_faq_lang_fa"),

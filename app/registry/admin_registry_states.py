@@ -372,6 +372,42 @@ def get_admin_conversation_states(admin_handlers):
             MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handlers.add_admin_display_name_received),
             CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
         ],
+        # ========== FAQ States ==========
+        ADD_FAQ_QUESTION: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handlers.admin_faq_question_received),
+            CallbackQueryHandler(admin_handlers.admin_faqs_menu, pattern="^admin_faqs$"),
+            CallbackQueryHandler(admin_handlers.admin_faq_set_lang, pattern="^adm_faq_lang_"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
+        ],
+        ADD_FAQ_ANSWER: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handlers.admin_faq_answer_received),
+            CallbackQueryHandler(admin_handlers.admin_faqs_menu, pattern="^admin_faqs$"),
+            CallbackQueryHandler(admin_handlers.admin_faq_set_lang, pattern="^adm_faq_lang_"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
+        ],
+        EDIT_FAQ_SELECT: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            CallbackQueryHandler(admin_handlers.admin_faq_edit_field_select, pattern="^edit_faq_"),
+            CallbackQueryHandler(admin_handlers.admin_faq_view, pattern="^adm_faq_view_"),
+            CallbackQueryHandler(admin_handlers.admin_faq_set_lang, pattern="^adm_faq_lang_"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
+        ],
+        EDIT_FAQ_QUESTION: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handlers.admin_faq_edit_question_received),
+            CallbackQueryHandler(admin_handlers.admin_faq_edit, pattern="^adm_faq_edit_"),
+            CallbackQueryHandler(admin_handlers.admin_faq_set_lang, pattern="^adm_faq_lang_"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
+        ],
+        EDIT_FAQ_ANSWER: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handlers.admin_faq_edit_answer_received),
+            CallbackQueryHandler(admin_handlers.admin_faq_edit, pattern="^adm_faq_edit_"),
+            CallbackQueryHandler(admin_handlers.admin_faq_set_lang, pattern="^adm_faq_lang_"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
+        ],
     }
 
     
