@@ -38,6 +38,15 @@ class AdminHandlerRegistry(BaseHandlerRegistry):
         self._register_admin_conversation()
         self._register_feedback_dashboard()
     
+    async def _exit_for_channel_management(self, update, context):
+        """
+        خروج از ConversationHandler ادمین برای اجازه به channel handler
+        این handler فقط END برمی‌گرداند تا channel handler بتواند کار کند
+        """
+        # این callback بدون پاسخ می‌مانه چون channel handler جواب می‌ده
+        from telegram.ext import ConversationHandler
+        return ConversationHandler.END
+
     def _register_admin_conversation(self):
         """
         ثبت ConversationHandler ادمین - کپی دقیق از main.py خط 178-676
@@ -88,6 +97,8 @@ class AdminHandlerRegistry(BaseHandlerRegistry):
             ],
             states=get_admin_conversation_states(self.admin_handlers),
             fallbacks=[
+                # خروج از مکالمه admin برای ورود به channel handler
+                CallbackQueryHandler(self._exit_for_channel_management, pattern="^channel_management$"),
                 CallbackQueryHandler(self.admin_handlers.admin_menu, pattern="^admin_exit$"),
                 CallbackQueryHandler(self.admin_handlers.admin_menu_return, pattern="^admin_cancel$"),
                 CallbackQueryHandler(self.admin_handlers.admin_menu_return, pattern="^admin_back$"),
