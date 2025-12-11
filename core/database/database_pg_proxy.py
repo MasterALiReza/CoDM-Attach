@@ -4337,7 +4337,7 @@ class DatabasePostgresProxy(DatabasePostgres):
             log_exception(logger, e, "get_all_admins")
             return []
 
-    def assign_role_to_admin(self, user_id: int, role_name: str, assigned_by: int = None) -> bool:
+    def assign_role_to_admin(self, user_id: int, role_name: str, assigned_by: int = None, display_name: str = None) -> bool:
         """اختصاص نقش به ادمین (و ایجاد ادمین اگر نباشد)"""
         try:
             with self.transaction() as conn:
@@ -4346,15 +4346,27 @@ class DatabasePostgresProxy(DatabasePostgres):
                 # 1. Ensure user exists in users table (if not, create dummy)
                 cursor.execute("INSERT INTO users (user_id) VALUES (%s) ON CONFLICT DO NOTHING", (user_id,))
                 
-                # 2. Ensure user exists in admins table
-                cursor.execute(
-                    """
-                    INSERT INTO admins (user_id, is_active) 
-                    VALUES (%s, TRUE)
-                    ON CONFLICT (user_id) DO UPDATE SET is_active = TRUE
-                    """, 
-                    (user_id,)
-                )
+                # 2. Ensure user exists in admins table with display_name
+                if display_name:
+                    cursor.execute(
+                        """
+                        INSERT INTO admins (user_id, is_active, display_name) 
+                        VALUES (%s, TRUE, %s)
+                        ON CONFLICT (user_id) DO UPDATE SET 
+                            is_active = TRUE,
+                            display_name = COALESCE(EXCLUDED.display_name, admins.display_name)
+                        """, 
+                        (user_id, display_name)
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        INSERT INTO admins (user_id, is_active) 
+                        VALUES (%s, TRUE)
+                        ON CONFLICT (user_id) DO UPDATE SET is_active = TRUE
+                        """, 
+                        (user_id,)
+                    )
                 
                 # 3. Get Role ID
                 cursor.execute("SELECT id FROM roles WHERE name = %s", (role_name,))

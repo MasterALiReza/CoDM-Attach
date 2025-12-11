@@ -1134,12 +1134,24 @@ class AdminManagementHandler(BaseAdminHandler):
             primary_icon = '👤'
             if admin.get('roles'):
                 # اگر نقش super_admin دارد
-                if any((r.get('name') == 'super_admin') for r in admin['roles']):
+                is_super = False
+                for r in admin['roles']:
+                    if isinstance(r, str):
+                        if r == 'super_admin':
+                            is_super = True
+                            break
+                    elif isinstance(r, dict) and r.get('name') == 'super_admin':
+                        is_super = True
+                        break
+                
+                if is_super:
                     primary_icon = '👑'
                 else:
                     # اولین آیکون نقش
-                    first_icon = next((r.get('icon') for r in admin['roles'] if r.get('icon')), None)
-                    primary_icon = first_icon or '👤'
+                    for r in admin['roles']:
+                        if isinstance(r, dict) and r.get('icon'):
+                            primary_icon = r.get('icon')
+                            break
             
             # خط اول: فقط نام کاربر (بدون برچسب برای سادگی i18n)
             # اولویت: @username → display_name → first_name → ID
