@@ -4251,9 +4251,24 @@ class DatabasePostgresProxy(DatabasePostgres):
             log_exception(logger, e, "get_all_roles")
             return []
 
+    def _ensure_admins_schema(self):
+        """Ensure admins table has all required columns"""
+        try:
+            # Add is_active if not exists
+            self.execute_query(
+                "ALTER TABLE admins ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;"
+            )
+        except Exception as e:
+            # Ignore error if column already exists (race condition) or other non-critical issues
+            # But log it just in case
+            logger.warning(f"Schema check for admins table: {e}")
+
     def is_admin(self, user_id: int) -> bool:
         """بررسی اینکه آیا کاربر ادمین است"""
         try:
+            # Ensure schema is correct (temporary fix for migration)
+            self._ensure_admins_schema()
+            
             query = "SELECT is_active FROM admins WHERE user_id = %s"
             result = self.execute_query(query, (user_id,), fetch_one=True)
             return bool(result and result['is_active'])
