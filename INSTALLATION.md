@@ -73,16 +73,9 @@ ALTER USER codm_bot_user CREATEDB;
 ### مرحله 5️⃣: کلون کردن پروژه
 
 ```bash
-# رفتن به مسیر /opt
+# 1. کلون پروژه
 cd /opt
-
-# کلون کردن پروژه
 sudo git clone https://github.com/MasterALiReza/CoDM-Attach.git codm-bot
-
-# تغییر مالکیت پوشه
-sudo chown -R $USER:$USER /opt/codm-bot
-
-# ورود به پوشه پروژه
 cd /opt/codm-bot
 ```
 

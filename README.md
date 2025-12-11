@@ -121,34 +121,44 @@ CODM Attachments Bot یک ربات تلگرام حرفه‌ای و تمام‌ع
 
 ```bash
 # 1. کلون پروژه
-git clone https://github.com/yourusername/codm-bot-modular.git
-cd codm-bot-modular
+git clone https://github.com/MasterALiReza/CoDM-Attach.git
+cd CoDM-Attach
 
 # 2. اجرای اسکریپت نصب
-chmod +x deploy.sh
-sudo ./deploy.sh
+sudo bash deploy.sh
 ```
 
-اسکریپت نصب موارد زیر را انجام می‌دهد:
-- ✅ نصب پایتون و PostgreSQL
-- ✅ ساخت کاربر اختصاصی برای ربات
-- ✅ ایجاد دیتابیس با پسورد امن تصادفی
-- ✅ تنظیم schema و جداول
-- ✅ افزودن Super Admin به دیتابیس
-- ✅ نصب CLI مدیریت (`wx-attach`)
+**ویژگی‌های اسکریپت پیشرفته deploy.sh:**
+
+📋 **منوی تعاملی:**
+- 1️⃣ نصب کامل ربات (Install)
+- 2️⃣ حذف کامل (Uninstall)
+- 3️⃣ به‌روزرسانی (Update)
+- 4️⃣-6️⃣ مدیریت سرویس (Start/Stop/Restart)
+- 7️⃣ نمایش وضعیت
+- 8️⃣ مشاهده لاگ‌ها
+- 9️⃣ بکاپ
+
+⚙️ **راه‌اندازی خودکار:**
+- ✅ نصب PostgreSQL و Python
+- ✅ ایجاد دیتابیس با 3 حالت:
+  - خودکار (پیشنهادی) - رمز عبور امن تولید می‌شود
+  - سفارشی - ورود دستی اطلاعات
+  - دیتابیس خارجی
+- ✅ تنظیم schema و seed data
+- ✅ افزودن خودکار Super Admin
 - ✅ راه‌اندازی سرویس systemd
 
-### شروع سریع بعد از نصب
+### مدیریت ربات بعد از نصب
 
 ```bash
-# شروع ربات
-wx-attach start
+# اجرای منوی مدیریت
+sudo bash deploy.sh
 
-# مشاهده وضعیت
-wx-attach status
-
-# مشاهده لاگ‌ها
-wx-attach logs
+# یا استفاده از systemctl
+sudo systemctl start codm-bot
+sudo systemctl status codm-bot
+sudo journalctl -u codm-bot -f
 ```
 
 ---
@@ -448,8 +458,8 @@ docker-compose up -d
 
 **توسعه یافته با ❤️ برای جامعه CODM**
 
-[![GitHub stars](https://img.shields.io/github/stars/yourusername/codm-bot-modular?style=social)](../../stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/yourusername/codm-bot-modular?style=social)](../../network/members)
+[![GitHub stars](https://img.shields.io/github/stars/MasterALiReza/CoDM-Attach?style=social)](https://github.com/MasterALiReza/CoDM-Attach/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/MasterALiReza/CoDM-Attach?style=social)](https://github.com/MasterALiReza/CoDM-Attach/network/members)
 
 </div>
 
