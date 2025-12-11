@@ -510,6 +510,64 @@ ON CONFLICT DO NOTHING;
 -- Initialize cache
 INSERT INTO ua_stats_cache (id) VALUES (1) ON CONFLICT DO NOTHING;
 
+-- Insert default weapons
+WITH new_weapons (cat_name, w_name) AS (
+    VALUES
+        -- Assault Rifles
+        ('assault_rifle', 'AK117'), ('assault_rifle', 'AK-47'), ('assault_rifle', 'ASM10'), 
+        ('assault_rifle', 'BK57'), ('assault_rifle', 'CR-56 AMAX'), ('assault_rifle', 'DR-H'), 
+        ('assault_rifle', 'EM2'), ('assault_rifle', 'FFAR 1'), ('assault_rifle', 'FR .556'), 
+        ('assault_rifle', 'Grau 5.56'), ('assault_rifle', 'HBRa3'), ('assault_rifle', 'HVK-30'), 
+        ('assault_rifle', 'ICR-1'), ('assault_rifle', 'Kilo 141'), ('assault_rifle', 'KN-44'), 
+        ('assault_rifle', 'Krig 6'), ('assault_rifle', 'LK24'), ('assault_rifle', 'M13'), 
+        ('assault_rifle', 'M16'), ('assault_rifle', 'M4'), ('assault_rifle', 'Man-O-War'), 
+        ('assault_rifle', 'Oden'), ('assault_rifle', 'Peacekeeper MK2'), ('assault_rifle', 'Type 25'), 
+        ('assault_rifle', 'AS VAL'), ('assault_rifle', 'Swordfish'), ('assault_rifle', 'Maddox'), 
+        ('assault_rifle', 'Groza'), ('assault_rifle', 'Type 19'), ('assault_rifle', 'BP50'), 
+        ('assault_rifle', 'LAG 53'),
+        
+        -- SMGs
+        ('smg', 'AGR 556'), ('smg', 'CBR4'), ('smg', 'Chicom'), ('smg', 'Cordite'), 
+        ('smg', 'Fennec'), ('smg', 'GKS'), ('smg', 'HG 40'), ('smg', 'KSP 45'), 
+        ('smg', 'LAPA'), ('smg', 'MAC-10'), ('smg', 'MSMC'), ('smg', 'MX9'), 
+        ('smg', 'OTs 9'), ('smg', 'PDW-57'), ('smg', 'Pharo'), ('smg', 'PP19 Bizon'), 
+        ('smg', 'PPSh-41'), ('smg', 'QXR'), ('smg', 'QQ9'), ('smg', 'Razorback'), 
+        ('smg', 'RUS-79U'), ('smg', 'Switchblade X9'), ('smg', 'Striker 45'), 
+        ('smg', 'CX-9'), ('smg', 'Tec-9'), ('smg', 'ISO'), ('smg', 'USS 9'),
+
+        -- LMGs
+        ('lmg', 'Chopper'), ('lmg', 'Hades'), ('lmg', 'Holger 26'), ('lmg', 'M4LMG'), 
+        ('lmg', 'RPD'), ('lmg', 'S36'), ('lmg', 'UL736'), ('lmg', 'Dingo'), 
+        ('lmg', 'Bruen MK9'), ('lmg', 'MG42'),
+
+        -- Snipers
+        ('sniper', 'Arctic .50'), ('sniper', 'DL Q33'), ('sniper', 'Koshka'), ('sniper', 'Locus'), 
+        ('sniper', 'M21 EBR'), ('sniper', 'NA-45'), ('sniper', 'Outlaw'), ('sniper', 'Rytec AMR'), 
+        ('sniper', 'SVD'), ('sniper', 'XPR-50'), ('sniper', 'ZRG 20mm'), ('sniper', 'HDR'), 
+        ('sniper', 'LW3-Tundra'),
+
+        -- Marksman
+        ('marksman', 'Kilo Bolt-Action'), ('marksman', 'MK2'), ('marksman', 'SKS'), 
+        ('marksman', 'SP-R 208'),
+
+        -- Shotguns
+        ('shotgun', 'BY15'), ('shotgun', 'Echo'), ('shotgun', 'HS0405'), ('shotgun', 'HS2126'), 
+        ('shotgun', 'JAK-12'), ('shotgun', 'KRM-262'), ('shotgun', 'R9-0'), ('shotgun', 'Shorty'), 
+        ('shotgun', 'Striker'), ('shotgun', 'Argus'),
+
+        -- Pistols
+        ('pistol', '.50 GS'), ('pistol', 'J358'), ('pistol', 'L-CAR 9'), ('pistol', 'MW11'), 
+        ('pistol', 'Renetti'), ('pistol', 'Dobvra'), ('pistol', 'Nail Gun'),
+
+        -- Launchers
+        ('launcher', 'FHJ-18'), ('launcher', 'SMRS'), ('launcher', 'Thumper'), ('launcher', 'D13 Sector')
+)
+INSERT INTO weapons (category_id, name)
+SELECT c.id, nw.w_name
+FROM new_weapons nw
+JOIN weapon_categories c ON c.name = nw.cat_name
+ON CONFLICT (category_id, name) DO NOTHING;
+
 -- ============================================================================
 -- STEP 14: Grant Permissions & Ownership
 -- ============================================================================
