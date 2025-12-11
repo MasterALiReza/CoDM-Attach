@@ -4163,6 +4163,227 @@ class DatabasePostgresProxy(DatabasePostgres):
             return super().close()
         except Exception as e:
             log_exception(logger, e, "close")
+
+    # ==========================================================================
+    # RBAC & Admin Methods
+    # ==========================================================================
+
+    def create_role_if_not_exists(self, role_name: str, display_name: str, 
+                                 description: str = None, icon: str = None, 
+                                 permissions: List[str] = None) -> bool:
+        """ایجاد نقش جدید اگر وجود نداشته باشد"""
+        try:
+            with self.transaction() as conn:
+                cursor = conn.cursor()
+                
+                # 1. Create Role
+                cursor.execute(
+                    """
+                    INSERT INTO roles (name, display_name, description, icon)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (name) DO UPDATE SET
+                        display_name = EXCLUDED.display_name,
+                        description = EXCLUDED.description,
+                        icon = EXCLUDED.icon
+                    RETURNING id
+                    """,
+                    (role_name, display_name, description, icon)
+                )
+                role_id = cursor.fetchone()['id']
+                
+                # 2. Add Permissions
+                if permissions:
+                    # First clear existing permissions for this role (to sync with code)
+                    cursor.execute("DELETE FROM role_permissions WHERE role_id = %s", (role_id,))
+                    
+                    # Add new permissions
+                    if permissions:
+                        values = [(role_id, p) for p in permissions]
+                        cursor.executemany(
+                            "INSERT INTO role_permissions (role_id, permission) VALUES (%s, %s)",
+                            values
+                        )
+                
+                return True
+        except Exception as e:
+            log_exception(logger, e, f"create_role_if_not_exists({role_name})")
+            return False
+
+    def get_role(self, role_name: str) -> Optional[Dict]:
+        """دریافت اطلاعات کامل یک نقش شامل دسترسی‌ها"""
+        try:
+            # Get role details
+            query = "SELECT * FROM roles WHERE name = %s"
+            role = self.execute_query(query, (role_name,), fetch_one=True)
+            
+            if not role:
+                return None
+                
+            # Get permissions
+            query_perms = "SELECT permission FROM role_permissions WHERE role_id = %s"
+            perms = self.execute_query(query_perms, (role['id'],), fetch_all=True)
+            
+            role_dict = dict(role)
+            role_dict['permissions'] = [p['permission'] for p in perms]
+            return role_dict
+        except Exception as e:
+            log_exception(logger, e, f"get_role({role_name})")
+            return None
+
+    def get_all_roles(self) -> List[Dict]:
+        """دریافت تمام نقش‌ها"""
+        try:
+            query = "SELECT * FROM roles ORDER BY id"
+            roles = self.execute_query(query, fetch_all=True)
+            
+            result = []
+            for role in roles:
+                # Get permissions for each role
+                query_perms = "SELECT permission FROM role_permissions WHERE role_id = %s"
+                perms = self.execute_query(query_perms, (role['id'],), fetch_all=True)
+                
+                role_dict = dict(role)
+                role_dict['permissions'] = [p['permission'] for p in perms]
+                result.append(role_dict)
+                
+            return result
+        except Exception as e:
+            log_exception(logger, e, "get_all_roles")
+            return []
+
+    def is_admin(self, user_id: int) -> bool:
+        """بررسی اینکه آیا کاربر ادمین است"""
+        try:
+            query = "SELECT is_active FROM admins WHERE user_id = %s"
+            result = self.execute_query(query, (user_id,), fetch_one=True)
+            return bool(result and result['is_active'])
+        except Exception as e:
+            log_exception(logger, e, f"is_admin({user_id})")
+            return False
+
+    def get_admin(self, user_id: int) -> Optional[Dict]:
+        """دریافت اطلاعات ادمین"""
+        try:
+            query = """
+                SELECT a.*, u.username, u.first_name, u.last_name
+                FROM admins a
+                JOIN users u ON a.user_id = u.user_id
+                WHERE a.user_id = %s
+            """
+            admin = self.execute_query(query, (user_id,), fetch_one=True)
+            
+            if not admin:
+                return None
+                
+            # Get roles
+            roles = self.get_admin_roles(user_id)
+            
+            admin_dict = dict(admin)
+            # For backward compatibility, set 'role_name' to the first role or 'admin'
+            admin_dict['role_name'] = roles[0] if roles else 'admin'
+            admin_dict['roles'] = roles
+            return admin_dict
+        except Exception as e:
+            log_exception(logger, e, f"get_admin({user_id})")
+            return None
+
+    def get_all_admins(self) -> List[Dict]:
+        """دریافت لیست تمام ادمین‌ها"""
+        try:
+            query = """
+                SELECT a.*, u.username, u.first_name, u.last_name
+                FROM admins a
+                JOIN users u ON a.user_id = u.user_id
+                ORDER BY a.created_at DESC
+            """
+            admins = self.execute_query(query, fetch_all=True)
+            
+            result = []
+            for admin in admins:
+                roles = self.get_admin_roles(admin['user_id'])
+                admin_dict = dict(admin)
+                admin_dict['role_name'] = roles[0] if roles else 'admin'
+                admin_dict['roles'] = roles
+                result.append(admin_dict)
+                
+            return result
+        except Exception as e:
+            log_exception(logger, e, "get_all_admins")
+            return []
+
+    def assign_role_to_admin(self, user_id: int, role_name: str, assigned_by: int = None) -> bool:
+        """اختصاص نقش به ادمین (و ایجاد ادمین اگر نباشد)"""
+        try:
+            with self.transaction() as conn:
+                cursor = conn.cursor()
+                
+                # 1. Ensure user exists in users table (if not, create dummy)
+                cursor.execute("INSERT INTO users (user_id) VALUES (%s) ON CONFLICT DO NOTHING", (user_id,))
+                
+                # 2. Ensure user exists in admins table
+                cursor.execute(
+                    """
+                    INSERT INTO admins (user_id, is_active) 
+                    VALUES (%s, TRUE)
+                    ON CONFLICT (user_id) DO UPDATE SET is_active = TRUE
+                    """, 
+                    (user_id,)
+                )
+                
+                # 3. Get Role ID
+                cursor.execute("SELECT id FROM roles WHERE name = %s", (role_name,))
+                role_res = cursor.fetchone()
+                if not role_res:
+                    logger.error(f"Role not found: {role_name}")
+                    return False
+                role_id = role_res['id']
+                
+                # 4. Assign Role
+                cursor.execute(
+                    """
+                    INSERT INTO admin_roles (user_id, role_id, assigned_by)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (user_id, role_id) DO NOTHING
+                    """,
+                    (user_id, role_id, assigned_by)
+                )
+                
+                return True
+        except Exception as e:
+            log_exception(logger, e, f"assign_role_to_admin({user_id}, {role_name})")
+            return False
+
+    def remove_admin(self, user_id: int) -> bool:
+        """حذف دسترسی ادمین (غیرفعال کردن)"""
+        try:
+            # We don't delete from table to keep history, just set inactive
+            # But for roles, we might want to clear them? 
+            # Let's just set is_active = FALSE and clear roles
+            with self.transaction() as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute("UPDATE admins SET is_active = FALSE WHERE user_id = %s", (user_id,))
+                cursor.execute("DELETE FROM admin_roles WHERE user_id = %s", (user_id,))
+                
+                return True
+        except Exception as e:
+            log_exception(logger, e, f"remove_admin({user_id})")
+            return False
+
+    def get_admin_roles(self, user_id: int) -> List[str]:
+        """دریافت نام نقش‌های یک ادمین"""
+        try:
+            query = """
+                SELECT r.name
+                FROM roles r
+                JOIN admin_roles ar ON r.id = ar.role_id
+                WHERE ar.user_id = %s
+            """
+            results = self.execute_query(query, (user_id,), fetch_all=True)
+            return [row['name'] for row in results]
+        except Exception as e:
+            log_exception(logger, e, f"get_admin_roles({user_id})")
+            return []
     
     # ==========================================================================
     # Proxy Pattern: Delegate unknown methods to DatabaseSQL
