@@ -391,9 +391,18 @@ async def add_channel_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"[channel] Received channel ID: {channel_id} from user={update.effective_user.id}")
     
     # اگر کاربر لینک فرستاد، سعی کنیم یوزرنیم را استخراج کنیم
-    if channel_id.startswith("https://t.me/"):
-        channel_id = "@" + channel_id.split("/")[-1]
-        logger.info(f"[channel] Extracted username from URL: {channel_id}")
+    # اگر کاربر لینک فرستاد، سعی کنیم یوزرنیم را استخراج کنیم
+    if "t.me/" in channel_id:
+        # حذف پروتکل
+        clean_id = channel_id.replace("https://", "").replace("http://", "")
+        # هندل کردن t.me/username و telegram.me/username
+        parts = [p for p in clean_id.split('/') if p]
+        if parts:
+            possible_username = parts[-1]
+            # نادیده گرفتن لینک‌های جوین پرایوت
+            if not possible_username.startswith('+') and not possible_username == 'joinchat':
+                channel_id = f"@{possible_username}"
+                logger.info(f"[channel] Extracted username from URL: {channel_id}")
     
     # اعتبارسنجی دقیق آیدی کانال
     from utils.validators import validate_channel_id
