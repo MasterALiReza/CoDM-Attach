@@ -14,7 +14,6 @@ def get_admin_conversation_states(admin_handlers):
     
     Args:
         admin_handlers: instance of AdminHandlers
-        
     Returns:
         dict: states dictionary برای ConversationHandler
     """
@@ -171,6 +170,7 @@ def get_admin_conversation_states(admin_handlers):
             CallbackQueryHandler(admin_handlers.admin_faq_edit, pattern="^adm_faq_edit_"),
             CallbackQueryHandler(admin_handlers.admin_faq_stats, pattern="^adm_faq_stats$"),
             CallbackQueryHandler(admin_handlers.admin_feedback_stats, pattern="^adm_feedback$"),
+            CallbackQueryHandler(admin_handlers.admin_faq_set_lang, pattern="^adm_faq_lang_"),
             # Direct Contact
             CallbackQueryHandler(admin_handlers.admin_direct_contact_menu, pattern="^adm_direct_contact$"),
             CallbackQueryHandler(admin_handlers.direct_contact_toggle, pattern="^dc_enable$|^dc_disable$"),
