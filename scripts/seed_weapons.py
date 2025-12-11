@@ -6,9 +6,14 @@ import os
 import sys
 import asyncio
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Add project root to path
-sys.path.append(str(Path(__file__).parent.parent))
+root_dir = Path(__file__).parent.parent
+sys.path.append(str(root_dir))
+
+# Load environment variables
+load_dotenv(root_dir / ".env")
 
 from core.database.database_pg_proxy import DatabasePostgresProxy
 from config.config import WEAPON_CATEGORIES
