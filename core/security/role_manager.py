@@ -66,12 +66,9 @@ class Permission(str, Enum):
     MANAGE_SCHEDULED_NOTIFICATIONS = "manage_scheduled_notifications"
     
     # پشتیبانی و تیکتینگ
-    MANAGE_TICKETS = "manage_tickets"
-    MANAGE_FAQS = "manage_faqs"
     VIEW_FEEDBACK = "view_feedback"
     
     # داده و گزارش
-    VIEW_ANALYTICS = "view_analytics"
     BACKUP_DATA = "backup_data"
     IMPORT_EXPORT = "import_export"
     
