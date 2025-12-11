@@ -505,6 +505,12 @@ EOF
     systemctl enable $SERVICE_NAME >/dev/null 2>&1
     print_success "سرویس systemd ایجاد شد"
     
+    # Install wx-attach CLI tool
+    print_step "نصب ابزار مدیریت (wx-attach)..."
+    cp "$SCRIPT_DIR/scripts/wx-attach" /usr/local/bin/wx-attach
+    chmod +x /usr/local/bin/wx-attach
+    print_success "ابزار مدیریت نصب شد"
+    
     # Step 9: Create directories
     mkdir -p "$INSTALL_DIR/logs" "$INSTALL_DIR/backups"
     chown -R $BOT_USER:$BOT_USER "$INSTALL_DIR/logs" "$INSTALL_DIR/backups"
