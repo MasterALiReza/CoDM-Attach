@@ -41,12 +41,15 @@ class OtherHandlersRegistry(BaseHandlerRegistry):
     
     def _register_channel_handlers(self):
         """ثبت channel handlers - main.py خط 731-736"""
-        # هندلر مدیریت کانال‌های اجباری - باید قبل از MessageHandler عمومی باشد
+        # هندلر مدیریت کانال‌های اجباری
+        # ⚠️ CRITICAL: باید در group=-2 باشد تا قبل از admin_conv (group=-1) و سایر handlers اجرا شود
+        # این تضمین می‌کند که ConversationHandler کانال پیام‌های متنی را قبل از سایر handlers دریافت کند
         channel_handler = get_channel_management_handler()
-        self.application.add_handler(channel_handler)
+        self.application.add_handler(channel_handler, group=-2)
         
         # هندلر بررسی عضویت کانال
         self.application.add_handler(CallbackQueryHandler(check_membership_callback, pattern="^check_membership$"))
+
     
     def _register_user_attachments(self):
         """ثبت user attachments handlers - main.py خط 738-754"""
