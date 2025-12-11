@@ -169,7 +169,8 @@ setup_database() {
     echo "  ${GREEN}3.${NC} استفاده از دیتابیس موجود ${CYAN}← اتصال به دیتابیس خارجی${NC}"
     echo ""
     
-    read -p "$(echo -e ${YELLOW}انتخاب شما ${WHITE}[1/2/3]${YELLOW}: ${NC})" db_setup_choice
+    echo -e -n "${YELLOW}انتخاب شما ${WHITE}[1/2/3]${YELLOW}: ${NC}"
+    read db_setup_choice
     db_setup_choice=${db_setup_choice:-1}
     
     case $db_setup_choice in
@@ -192,13 +193,16 @@ setup_database() {
             # Custom setup
             print_step "راه‌اندازی سفارشی دیتابیس..."
             
-            read -p "$(echo -e ${CYAN}نام دیتابیس ${WHITE}[$DEFAULT_DB_NAME]${CYAN}: ${NC})" DB_NAME
+            echo -e -n "${CYAN}نام دیتابیس ${WHITE}[$DEFAULT_DB_NAME]${CYAN}: ${NC}"
+            read DB_NAME
             DB_NAME=${DB_NAME:-$DEFAULT_DB_NAME}
             
-            read -p "$(echo -e ${CYAN}نام کاربر ${WHITE}[$DEFAULT_DB_USER]${CYAN}: ${NC})" DB_USER
+            echo -e -n "${CYAN}نام کاربر ${WHITE}[$DEFAULT_DB_USER]${CYAN}: ${NC}"
+            read DB_USER
             DB_USER=${DB_USER:-$DEFAULT_DB_USER}
             
-            read -sp "$(echo -e ${CYAN}رمز عبور ${YELLOW}(خالی = تولید خودکار)${CYAN}: ${NC})" DB_PASS
+            echo -e -n "${CYAN}رمز عبور ${YELLOW}(خالی = تولید خودکار)${CYAN}: ${NC}"
+            read -s DB_PASS
             echo ""
             
             if [ -z "$DB_PASS" ]; then
@@ -214,7 +218,8 @@ setup_database() {
             # External database
             print_step "اتصال به دیتابیس خارجی..."
             
-            read -p "$(echo -e ${CYAN}آدرس دیتابیس CONNECTION STRING: ${NC})" DATABASE_URL
+            echo -e -n "${CYAN}آدرس دیتابیس CONNECTION STRING: ${NC}"
+            read DATABASE_URL
             
             if [[ "$DATABASE_URL" =~ postgresql://([^:]+):([^@]+)@([^:/]+):?([0-9]*)/(.+) ]]; then
                 DB_USER="${BASH_REMATCH[1]}"
@@ -291,7 +296,8 @@ setup_bot_config() {
     echo ""
     
     while true; do
-        read -p "$(echo -e ${YELLOW}توکن ربات: ${NC})" BOT_TOKEN
+        echo -e -n "${YELLOW}توکن ربات: ${NC}"
+        read BOT_TOKEN
         
         if [ -z "$BOT_TOKEN" ]; then
             print_error "توکن نمی‌تواند خالی باشد"
@@ -311,7 +317,8 @@ setup_bot_config() {
     echo ""
     
     while true; do
-        read -p "$(echo -e ${YELLOW}Telegram User ID: ${NC})" SUPER_ADMIN_ID
+        echo -e -n "${YELLOW}Telegram User ID: ${NC}"
+        read SUPER_ADMIN_ID
         
         if [ -z "$SUPER_ADMIN_ID" ]; then
             print_error "ID نمی‌تواند خالی باشد"
@@ -836,7 +843,8 @@ show_main_menu() {
         echo -e "${CYAN}╚════════════════════════════════════════════════════════════════════╝${NC}"
         echo ""
         
-        read -p "$(echo -e ${YELLOW}انتخاب شما ${WHITE}[0-9]${YELLOW}: ${NC})" choice
+        echo -e -n "${YELLOW}انتخاب شما ${WHITE}[0-9]${YELLOW}: ${NC}"
+        read choice
         
         case $choice in
             1) install_bot ;;
