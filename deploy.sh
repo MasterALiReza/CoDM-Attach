@@ -14,15 +14,27 @@ set -e  # Exit on error
 # Colors and Formatting
 # ============================================================================
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-MAGENTA='\033[0;35m'
-WHITE='\033[1;37m'
-NC='\033[0m'
-BOLD='\033[1m'
+if command -v tput >/dev/null 2>&1; then
+    RED=$(tput setaf 1)
+    GREEN=$(tput setaf 2)
+    YELLOW=$(tput setaf 3)
+    BLUE=$(tput setaf 4)
+    MAGENTA=$(tput setaf 5)
+    CYAN=$(tput setaf 6)
+    WHITE=$(tput setaf 7)
+    NC=$(tput sgr0)
+    BOLD=$(tput bold)
+else
+    RED='\e[0;31m'
+    GREEN='\e[0;32m'
+    YELLOW='\e[1;33m'
+    BLUE='\e[0;34m'
+    MAGENTA='\e[0;35m'
+    CYAN='\e[0;36m'
+    WHITE='\e[1;37m'
+    NC='\e[0m'
+    BOLD='\e[1m'
+fi
 
 # ============================================================================
 # Configuration
