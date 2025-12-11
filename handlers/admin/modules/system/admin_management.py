@@ -885,7 +885,7 @@ class AdminManagementHandler(BaseAdminHandler):
         # جلوگیری از حذف آخرین نقش سوپرادمین سیستم
         if role_name == 'super_admin':
             all_admins = self._get_cached_admin_list()
-            super_admins = [a for a in all_admins if any(r.get('name') == 'super_admin' for r in a.get('roles', []))]
+            super_admins = [a for a in all_admins if any((r if isinstance(r, str) else r.get('name')) == 'super_admin' for r in a.get('roles', []))]
             if len(super_admins) <= 1 and any(a['user_id'] == int(admin_user_id) for a in super_admins):
                 await query.edit_message_text(
                     t("admin.admin_mgmt.del_role.super_last.title", lang) + "\n\n" +
@@ -1088,9 +1088,9 @@ class AdminManagementHandler(BaseAdminHandler):
             admin_data = context.user_data.pop('temp_remove_admin_data', None) or self.db.get_admin(admin_id)
             display_name = admin_data.get('display_name', f'`{admin_id}`') if admin_data else f'`{admin_id}`'
             # جلوگیری از حذف تنها سوپرادمین سیستم
-            if admin_data and any(r.get('name') == 'super_admin' for r in admin_data.get('roles', [])):
+            if admin_data and any((r if isinstance(r, str) else r.get('name')) == 'super_admin' for r in admin_data.get('roles', [])):
                 all_admins = self._get_cached_admin_list()
-                super_admins = [a for a in all_admins if any(r.get('name') == 'super_admin' for r in a.get('roles', []))]
+                super_admins = [a for a in all_admins if any((r if isinstance(r, str) else r.get('name')) == 'super_admin' for r in a.get('roles', []))]
                 if len(super_admins) <= 1:
                     await query.edit_message_text(
                         t("admin.admin_mgmt.remove.super_last.title", lang) + "\n\n" +
@@ -1215,7 +1215,10 @@ class AdminManagementHandler(BaseAdminHandler):
         
         for admin in admins:
             for role in admin.get('roles', []):
-                role_name = role.get('name')
+                if isinstance(role, str):
+                    role_name = role
+                else:
+                    role_name = role.get('name')
                 if role_name in role_usage:
                     role_usage[role_name]['count'] += 1
         
