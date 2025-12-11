@@ -1974,7 +1974,7 @@ class DatabasePostgresProxy(DatabasePostgres):
                 SELECT channel_id, title, url, priority
                 FROM required_channels
                 WHERE is_active = TRUE
-                ORDER BY priority ASC, id ASC
+                ORDER BY priority ASC, channel_id ASC
             """
             results = self.execute_query(query, fetch_all=True)
             return results
