@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from threading import Lock
 
-from config.constants import SLOW_QUERY_THRESHOLD_SEC
+# from config.constants import SLOW_QUERY_THRESHOLD_SEC
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +102,7 @@ class QueryMetrics:
             self.total_duration += duration
             
             # بررسی slow query
+            from config.constants import SLOW_QUERY_THRESHOLD_SEC
             if duration > SLOW_QUERY_THRESHOLD_SEC:
                 self.slow_queries += 1
                 
