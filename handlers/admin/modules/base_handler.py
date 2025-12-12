@@ -233,19 +233,6 @@ class BaseAdminHandler:
         
         Returns:
             لیست دکمه‌های فیلتر شده
-        
-        ترتیب دکمه‌ها:
-        1. مدیریت محتوای اتچمنت‌ها (افزودن، ویرایش، حذف، برترین‌ها)
-        2. مدیریت محتوای کاربران (اتچمنت‌های کاربری)
-        3. ساختار بازی (دسته‌ها، سلاح‌ها)
-        4. تنظیمات محتوا (پیشنهادی، تنظیمات)
-        5. پشتیبانی کاربران (تیکت‌ها، FAQ)
-        6. ارتباطات و اعلان‌ها (ارسال، تنظیمات)
-        7. مدیریت متون (ویرایش متون)
-        8. مدیریت سیستم (ادمین‌ها، کانال‌ها)
-        9. داده و بکاپ (import/export، backup)
-        10. آمار و تحلیل (آنالیتیکس، سلامت، بازخورد)
-        11. خروج
         """
         from core.security.role_manager import Permission
         
@@ -254,22 +241,16 @@ class BaseAdminHandler:
         
         keyboard = []
         
-        # ========== 1️⃣ مدیریت محتوای اتچمنت‌ها ==========
-        # ردیف اول: افزودن و ویرایش
-        content_row1 = []
-        if Permission.MANAGE_ATTACHMENTS_BR in user_permissions or Permission.MANAGE_ATTACHMENTS_MP in user_permissions:
-            content_row1.append(InlineKeyboardButton(t("admin.buttons.add_attachment", lang), callback_data="admin_add_attachment"))
-            content_row1.append(InlineKeyboardButton(t("admin.buttons.edit_attachment", lang), callback_data="admin_edit_attachment"))
-        if content_row1:
-            keyboard.append(content_row1)
-        
-        # ردیف دوم: حذف و تنظیم برترین‌ها
-        content_row2 = []
-        if Permission.MANAGE_ATTACHMENTS_BR in user_permissions or Permission.MANAGE_ATTACHMENTS_MP in user_permissions:
-            content_row2.append(InlineKeyboardButton(t("admin.buttons.delete_attachment", lang), callback_data="admin_delete_attachment"))
-            content_row2.append(InlineKeyboardButton(t("admin.buttons.set_top", lang), callback_data="admin_set_top"))
-        if content_row2:
-            keyboard.append(content_row2)
+        # ========== 1️⃣ مدیریت اتچمنت‌ها (جدید با زیرمنو) ==========
+        # اگر کاربر دسترسی به هر یک از بخش‌های اتچمنت داشته باشد، دکمه را می‌بیند
+        has_att_perm = (Permission.MANAGE_ATTACHMENTS_BR in user_permissions or 
+                       Permission.MANAGE_ATTACHMENTS_MP in user_permissions or
+                       Permission.MANAGE_CATEGORIES in user_permissions)
+                       
+        if has_att_perm:
+            keyboard.append([
+                InlineKeyboardButton(t("admin.menu.attachments", lang), callback_data="admin_manage_attachments")
+            ])
         
         # ========== 2️⃣ مدیریت محتوای کاربران ==========
         if Permission.MANAGE_USER_ATTACHMENTS in user_permissions or self.role_manager.is_super_admin(user_id):
@@ -277,26 +258,25 @@ class BaseAdminHandler:
                 InlineKeyboardButton(t("admin.buttons.ua_admin", lang), callback_data="ua_admin_menu")
             ])
         
-        # ========== 3️⃣ ساختار بازی ==========
-        structure_row = []
-        if Permission.MANAGE_CATEGORIES in user_permissions:
-            structure_row.append(InlineKeyboardButton(t("admin.buttons.category_mgmt", lang), callback_data="admin_category_mgmt"))
-            structure_row.append(InlineKeyboardButton(t("admin.buttons.weapon_mgmt", lang), callback_data="admin_weapon_mgmt"))
-        if structure_row:
-            keyboard.append(structure_row)
-        
-        # ========== 4️⃣ تنظیمات محتوا ==========
-        settings_row = []
-        if Permission.MANAGE_SUGGESTED_ATTACHMENTS in user_permissions:
-            settings_row.append(InlineKeyboardButton(t("admin.buttons.suggested", lang), callback_data="admin_manage_suggested"))
+        # ========== 3️⃣ محتوای تکمیلی (تنظیمات بازی، پیشنهادی) ==========
+        supp_row1 = []
         if Permission.MANAGE_GUIDES_BR in user_permissions or Permission.MANAGE_GUIDES_MP in user_permissions:
-            settings_row.append(InlineKeyboardButton(t("admin.buttons.game_settings", lang), callback_data="admin_guides"))
+            supp_row1.append(InlineKeyboardButton(t("admin.buttons.game_settings", lang), callback_data="admin_guides"))
+        if Permission.MANAGE_SUGGESTED_ATTACHMENTS in user_permissions:
+            supp_row1.append(InlineKeyboardButton(t("admin.buttons.suggested", lang), callback_data="admin_manage_suggested"))
+        if supp_row1:
+            keyboard.append(supp_row1)
+
+        # ========== 4️⃣ محتوا و متن (CMS, Texts) ==========
+        content_row = []
         if Permission.MANAGE_CMS in user_permissions:
-            settings_row.append(InlineKeyboardButton(t("admin.buttons.cms", lang), callback_data="admin_cms"))
-        if settings_row:
-            keyboard.append(settings_row)
-        
-        # ========== 5️⃣ پشتیبانی کاربران ==========
+            content_row.append(InlineKeyboardButton(t("admin.buttons.cms", lang), callback_data="admin_cms"))
+        if Permission.MANAGE_TEXTS in user_permissions:
+            content_row.append(InlineKeyboardButton(t("admin.buttons.edit_texts", lang), callback_data="admin_texts"))
+        if content_row:
+            keyboard.append(content_row)
+            
+        # ========== 5️⃣ پشتیبانی (Tickets, FAQ) ==========
         support_row = []
         if Permission.MANAGE_TICKETS in user_permissions:
             support_row.append(InlineKeyboardButton(t("admin.buttons.tickets", lang), callback_data="admin_tickets"))
@@ -304,8 +284,17 @@ class BaseAdminHandler:
             support_row.append(InlineKeyboardButton(t("admin.buttons.faq", lang), callback_data="admin_faqs"))
         if support_row:
             keyboard.append(support_row)
-        
-        # ========== 6️⃣ ارتباطات و اعلان‌ها ==========
+
+        # ========== 6️⃣ مدیریت سیستم (Admins, Channels) ==========
+        sys_row = []
+        if Permission.MANAGE_ADMINS in user_permissions:
+            sys_row.append(InlineKeyboardButton(t("admin.buttons.manage_admins", lang), callback_data="manage_admins"))
+        if Permission.MANAGE_CHANNELS in user_permissions:
+            sys_row.append(InlineKeyboardButton(t("admin.buttons.manage_channels", lang), callback_data="channel_management"))
+        if sys_row:
+            keyboard.append(sys_row)
+
+        # ========== 7️⃣ ارتباطات (Notify) ==========
         comm_row = []
         if Permission.SEND_NOTIFICATIONS in user_permissions:
             comm_row.append(InlineKeyboardButton(t("admin.buttons.notify_send", lang), callback_data="admin_notify"))
@@ -314,28 +303,7 @@ class BaseAdminHandler:
         if comm_row:
             keyboard.append(comm_row)
         
-        # ========== 7️⃣ مدیریت متون ==========
-        if Permission.MANAGE_TEXTS in user_permissions:
-            keyboard.append([InlineKeyboardButton(t("admin.buttons.edit_texts", lang), callback_data="admin_texts")])
-        
-        # ========== 8️⃣ مدیریت سیستم ==========
-        admin_row = []
-        if Permission.MANAGE_ADMINS in user_permissions:
-            admin_row.append(InlineKeyboardButton(t("admin.buttons.manage_admins", lang), callback_data="manage_admins"))
-        if Permission.MANAGE_CHANNELS in user_permissions:
-            admin_row.append(InlineKeyboardButton(t("admin.buttons.manage_channels", lang), callback_data="channel_management"))
-        if admin_row:
-            keyboard.append(admin_row)
-        
-        # ========== 9️⃣ داده و بکاپ ==========
-        if Permission.IMPORT_EXPORT in user_permissions or Permission.BACKUP_DATA in user_permissions:
-            keyboard.append([
-                InlineKeyboardButton(t("admin.buttons.data_mgmt", lang), callback_data="admin_data_management")
-            ])
-        
-        # ========== 🔟 آمار و تحلیل ==========
-        
-        # آنالیتیکس و سلامت داده
+        # ========== 8️⃣ آمار و سلامت (Analytics, Health) ==========
         analytics_row = []
         if Permission.VIEW_ANALYTICS in user_permissions:
             analytics_row.append(InlineKeyboardButton(t("admin.buttons.analytics", lang), callback_data="attachment_analytics"))
@@ -343,14 +311,17 @@ class BaseAdminHandler:
             analytics_row.append(InlineKeyboardButton(t("admin.buttons.data_health", lang), callback_data="data_health"))
         if analytics_row:
             keyboard.append(analytics_row)
+            
+        # ========== 9️⃣ داده و بازخورد (Data Mgmt, Feedback) ==========
+        data_row = []
+        if Permission.IMPORT_EXPORT in user_permissions or Permission.BACKUP_DATA in user_permissions:
+            data_row.append(InlineKeyboardButton(t("admin.buttons.data_mgmt", lang), callback_data="admin_data_management"))
+        if Permission.VIEW_ANALYTICS in user_permissions: # Access to feedback usually tied to analytics or support
+            data_row.append(InlineKeyboardButton(t("admin.buttons.feedback_dashboard", lang), callback_data="fb_dashboard"))
+        if data_row:
+            keyboard.append(data_row)
         
-        # داشبورد بازخورد
-        if Permission.VIEW_ANALYTICS in user_permissions:
-            keyboard.append([
-                InlineKeyboardButton(t("admin.buttons.feedback_dashboard", lang), callback_data="fb_dashboard")
-            ])
-        
-        # ========== 1️⃣1️⃣ خروج ==========
+        # ========== 🔟 خروج ==========
         keyboard.append([InlineKeyboardButton(t("admin.buttons.exit", lang), callback_data="admin_exit")])
         
         return keyboard

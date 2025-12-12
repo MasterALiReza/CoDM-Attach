@@ -12,7 +12,8 @@ from handlers.admin.modules.attachments import (
     DeleteAttachmentHandler,
     EditAttachmentHandler,
     TopAttachmentsHandler,
-    SuggestedAttachmentsHandler
+    SuggestedAttachmentsHandler,
+    AttachmentManagementHandler
 )
 from handlers.admin.modules.analytics import AttachmentsDashboardHandler
 from handlers.admin.modules.reports import DataHealthReportHandler
@@ -72,9 +73,13 @@ class AdminHandlers(BaseAdminHandler):
         self.delete_attachment_handler = DeleteAttachmentHandler(self.db)
         self.edit_attachment_handler = EditAttachmentHandler(self.db)
         self.top_attachments_handler = TopAttachmentsHandler(self.db)
+        self.top_attachments_handler = TopAttachmentsHandler(self.db)
         self.suggested_attachments_handler = SuggestedAttachmentsHandler(self.db)
+        self.attachment_mgmt_handler = AttachmentManagementHandler(self.db)
         
         # کپی کردن توابع از handlers به این کلاس
+        # Main Attachment Menu
+        self.attachment_management_menu = self.attachment_mgmt_handler.attachment_management_menu
         # Add Attachment
         self.add_attachment_start = self.add_attachment_handler.add_attachment_start
         self.add_attachment_category_selected = self.add_attachment_handler.add_attachment_category_selected
@@ -495,6 +500,8 @@ class AdminHandlers(BaseAdminHandler):
         elif action == "manage_admins":
             # همیشه منوی مدیریت ادمین‌ها را رندر کن (خود handler خطای Message is not modified را هندل می‌کند)
             return await self.manage_admins_menu(update, context)
+        elif action == "admin_manage_attachments":
+             return await self.attachment_management_menu(update, context)
         elif action == "admin_add_attachment":
             return await self.add_attachment_start(update, context)
         elif action == "admin_delete_attachment":

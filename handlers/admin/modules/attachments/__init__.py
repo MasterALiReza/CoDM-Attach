@@ -8,6 +8,7 @@ from .delete_attachment import DeleteAttachmentHandler
 from .edit_attachment import EditAttachmentHandler
 from .top_attachments import TopAttachmentsHandler
 from .suggested_attachments import SuggestedAttachmentsHandler
+from .management_menu import AttachmentManagementHandler
 
 __all__ = [
     'AddAttachmentHandler',
@@ -15,4 +16,5 @@ __all__ = [
     'EditAttachmentHandler',
     'TopAttachmentsHandler',
     'SuggestedAttachmentsHandler',
+    'AttachmentManagementHandler',
 ]
