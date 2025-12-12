@@ -314,11 +314,24 @@ async def show_pending_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     keyboard.append([InlineKeyboardButton(t('menu.buttons.back', lang), callback_data="ua_admin_menu")])
     
-    await query.edit_message_text(
-        message,
-        parse_mode='Markdown',
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    try:
+        await query.edit_message_text(
+            message,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    except Exception:
+        # اگه پیام photo بود
+        try:
+            await query.message.delete()
+        except Exception as e:
+            logger.warning(f"Failed to delete UA admin pending message: {e}")
+        await update.effective_chat.send_message(
+            message,
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
 
 
 async def show_attachment_review(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -353,7 +366,12 @@ async def show_attachment_review(update: Update, context: ContextTypes.DEFAULT_T
     
     # نمایش نام سلاح (custom یا از DB)
     weapon_display = attachment.get('custom_weapon_name') or attachment.get('weapon_name', t('common.unknown', lang))
-    category_display = attachment.get('category', attachment.get('category_name', t('common.unknown', lang)))
+    category_raw = attachment.get('category', attachment.get('category_name', ''))
+    # ترجمه category از کلید به متن
+    if category_raw:
+        category_display = t(f'category.{category_raw}', lang, default=category_raw)
+    else:
+        category_display = t('common.unknown', lang)
     att_name = attachment.get('name', attachment.get('attachment_name', t('attachment.name', lang)))
     
     # Escape برای HTML
