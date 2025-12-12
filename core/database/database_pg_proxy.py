@@ -3518,7 +3518,8 @@ class DatabasePostgresProxy(DatabasePostgres):
     def get_faqs(self, category: Optional[str] = None, lang: Optional[str] = None) -> List[Dict]:
         """دریافت FAQ ها (فیلتر بر اساس زبان در صورت ارائه)"""
         try:
-            self._ensure_faqs_lang_column()
+            # self._ensure_faqs_lang_column() # Perfmance/Permission issue avoidance
+            logger.info(f"DEBUG: get_faqs called with category={category}, lang={lang}")
             if category and lang:
                 query = "SELECT * FROM faqs WHERE category = %s AND lang = %s ORDER BY views DESC"
                 results = self.execute_query(query, (category, lang), fetch_all=True)
@@ -3531,6 +3532,8 @@ class DatabasePostgresProxy(DatabasePostgres):
             else:
                 query = "SELECT * FROM faqs ORDER BY views DESC"
                 results = self.execute_query(query, fetch_all=True)
+            
+            logger.info(f"DEBUG: get_faqs returning {len(results)} items")
             return [dict(row) for row in results]
         except Exception as e:
             log_exception(logger, e, "get_faqs")
