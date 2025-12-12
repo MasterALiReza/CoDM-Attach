@@ -1633,6 +1633,7 @@ class AttachmentsDashboardHandler(BaseAdminHandler):
                     CallbackQueryHandler(self.ws_choose_category, pattern="^weapon_stats_cat_\\d+$"),
                     CallbackQueryHandler(self.ws_back_to_categories, pattern="^ws_back_to_categories$"),
                     CallbackQueryHandler(self.user_behavior_details, pattern="^user_behavior_details$"),
+                    CallbackQueryHandler(self.analytics_menu, pattern="^analytics_menu$"),
                     CallbackQueryHandler(self.admin_cancel, pattern="^admin_menu_return$")
                 ],
                 VIEW_TRENDING: [
