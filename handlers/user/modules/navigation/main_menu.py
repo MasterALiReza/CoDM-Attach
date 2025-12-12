@@ -120,6 +120,7 @@ class MainMenuHandler(BaseUserHandler):
         
         # ردیف 2: بسته به فعال بودن سیستم اتچمنت کاربران
         ua_system_enabled = self.db.get_ua_setting('system_enabled') or '1'
+        logger.info(f"[DEBUG] UA system_enabled value: {repr(ua_system_enabled)} (type: {type(ua_system_enabled).__name__})")
         if ua_system_enabled == '1':
             keyboard.append([kb("menu.buttons.ua", lang), kb("menu.buttons.suggested", lang)])
         else:
