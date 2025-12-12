@@ -381,20 +381,14 @@ CREATE TABLE IF NOT EXISTS guides (
     updated_at TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS guide_photos (
+CREATE TABLE IF NOT EXISTS guide_media (
     id SERIAL PRIMARY KEY,
     guide_id INTEGER NOT NULL REFERENCES guides(id) ON DELETE CASCADE,
+    media_type TEXT NOT NULL CHECK (media_type IN ('photo', 'video')),
     file_id TEXT NOT NULL,
     caption TEXT,
-    sort_order INTEGER DEFAULT 0
-);
-
-CREATE TABLE IF NOT EXISTS guide_videos (
-    id SERIAL PRIMARY KEY,
-    guide_id INTEGER NOT NULL REFERENCES guides(id) ON DELETE CASCADE,
-    file_id TEXT NOT NULL,
-    caption TEXT,
-    sort_order INTEGER DEFAULT 0
+    order_index INTEGER DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 -- ============================================================================
