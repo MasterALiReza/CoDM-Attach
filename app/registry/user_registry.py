@@ -128,7 +128,7 @@ class UserHandlerRegistry(BaseHandlerRegistry):
         self.application.add_handler(MessageHandler(filters.Regex('^📰 Content$'), self.cms_user_handler.cms_home_msg))
         
         # Import show_user_attachments_menu برای handler
-        from handlers.user.user_attachments import show_user_attachments_menu
+        from handlers.user.user_attachments.submission_handler import show_user_attachments_menu
         self.application.add_handler(MessageHandler(filters.Regex('^🎮 اتچمنت کاربران$'), show_user_attachments_menu))
         self.application.add_handler(MessageHandler(filters.Regex('^🎮 User Attachments$'), show_user_attachments_menu))
         
