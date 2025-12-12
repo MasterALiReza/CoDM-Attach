@@ -382,8 +382,20 @@ class AdminHandlers(BaseAdminHandler):
                 await update.message.reply_text(t("admin.not_admin", lang))
             return ConversationHandler.END
         
-        # پاک کردن navigation stack و داده‌های قبلی
+        # ======== FULL RESET: Clear ALL admin-related context data ========
+        # This ensures a fresh start every time admin panel is opened
         self._clear_navigation(context)
+        self._clear_temp_data(context)
+        
+        # Clear any additional stuck state keys
+        keys_to_clear = [k for k in list(context.user_data.keys()) 
+                         if k.startswith(('admin_', 'edit_', 'add_', 'del_', 'set_', 
+                                         'notif_', 'guide_', 'text_', 'tmpl_', 
+                                         'faq_', 'ticket_', 'cms_', 'cat_', 'weapon_',
+                                         'suggested_', 'health_', 'import_', 'export_',
+                                         'ua_', 'nav_', 'search_'))]
+        for key in keys_to_clear:
+            context.user_data.pop(key, None)
         context.user_data.pop('admin_entry_handled', None)
         
         # استفاده از متد مشترک برای ساخت کیبورد با فیلتر دسترسی

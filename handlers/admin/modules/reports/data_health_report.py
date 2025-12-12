@@ -1,7 +1,7 @@
-"""
+﻿"""
 Data Health Report Handler - Simple Version
 Admin interface for viewing and managing data health checks
-بدون استفاده از ConversationHandler برای سادگی
+Ø¨Ø¯ÙˆÙ† Ø§Ø³ØªÙØ§Ø¯Ù‡ Ø§Ø² ConversationHandler Ø¨Ø±Ø§ÛŒ Ø³Ø§Ø¯Ú¯ÛŒ
 """
 
 import os
@@ -188,7 +188,7 @@ class DataHealthReportHandler(BaseAdminHandler):
             
             # Build result message
             score = results['health_score']
-            score_emoji = "🟢" if score >= 80 else "🟡" if score >= 60 else "🔴"
+            score_emoji = "ðŸŸ¢" if score >= 80 else "ðŸŸ¡" if score >= 60 else "ðŸ”´"
             
             message = t('admin.health.run.completed.title', lang) + "\n\n"
             message += t('admin.health.run.completed.score', lang, emoji=score_emoji, score=f"{score:.1f}") + "\n\n"
@@ -262,11 +262,11 @@ class DataHealthReportHandler(BaseAdminHandler):
                 details = json.loads(details_json) if isinstance(details_json, str) and details_json else {}
                 
                 if check_type == 'missing_images':
-                    message += f"🖼️ **{t('admin.health.type.missing_images', lang)}:** {count} {t('admin.health.issue.unit', lang)}\n"
+                    message += f"ðŸ–¼ï¸ **{t('admin.health.type.missing_images', lang)}:** {count} {t('admin.health.issue.unit', lang)}\n"
                 elif check_type == 'duplicate_codes':
-                    message += f"🔁 **{t('admin.health.type.duplicate_codes', lang)}:** {count} {t('admin.health.issue.unit', lang)}\n"
+                    message += f"ðŸ” **{t('admin.health.type.duplicate_codes', lang)}:** {count} {t('admin.health.issue.unit', lang)}\n"
                 elif check_type == 'orphaned_attachments':
-                    message += f"🧩 **{t('admin.health.type.orphaned_attachments', lang)}:** {count} {t('admin.health.issue.unit', lang)}\n"
+                    message += f"ðŸ§© **{t('admin.health.type.orphaned_attachments', lang)}:** {count} {t('admin.health.issue.unit', lang)}\n"
                 
                 date_str = created_at.strftime('%Y-%m-%d') if hasattr(created_at, 'strftime') else (str(created_at)[:10] if created_at else '-')
                 message += t('admin.health.date', lang, date=date_str) + "\n\n"
@@ -322,9 +322,9 @@ class DataHealthReportHandler(BaseAdminHandler):
                 created_at = warning.get('created_at')
                 
                 if check_type == 'empty_weapons':
-                    message += f"🗡️ **{t('admin.health.type.empty_weapons', lang)}:** {count} {t('admin.health.issue.unit', lang)}\n"
+                    message += f"ðŸ—¡ï¸ **{t('admin.health.type.empty_weapons', lang)}:** {count} {t('admin.health.issue.unit', lang)}\n"
                 elif check_type == 'sparse_weapons':
-                    message += f"🟨 **{t('admin.health.type.sparse_weapons', lang)}:** {count} {t('admin.health.issue.unit', lang)}\n"
+                    message += f"ðŸŸ¨ **{t('admin.health.type.sparse_weapons', lang)}:** {count} {t('admin.health.issue.unit', lang)}\n"
                 
                 date_str = created_at.strftime('%Y-%m-%d') if hasattr(created_at, 'strftime') else (str(created_at)[:10] if created_at else '-')
                 message += t('admin.health.date', lang, date=date_str) + "\n\n"
@@ -403,7 +403,7 @@ class DataHealthReportHandler(BaseAdminHandler):
                 score = float(score)
             except (TypeError, ValueError):
                 score = 0.0
-            score_emoji = "🟢" if score >= 80 else "🟡" if score >= 60 else "🔴"
+            score_emoji = "ðŸŸ¢" if score >= 80 else "ðŸŸ¡" if score >= 60 else "ðŸ”´"
             
             date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else (str(date)[:10] if date else '-')
             message += t('admin.health.date', lang, date=date_str) + "\n"
@@ -421,7 +421,7 @@ class DataHealthReportHandler(BaseAdminHandler):
                     severity = row.get('severity')
                     check_type = row.get('check_type')
                     count = row.get('issue_count')
-                    emoji = "❌" if severity == "CRITICAL" else "⚠️" if severity == "WARNING" else "ℹ️"
+                    emoji = "âŒ" if severity == "CRITICAL" else "âš ï¸" if severity == "WARNING" else "â„¹ï¸"
                     type_title = {
                         'missing_images': t('admin.health.type.missing_images', lang),
                         'duplicate_codes': t('admin.health.type.duplicate_codes', lang),
@@ -532,13 +532,13 @@ class DataHealthReportHandler(BaseAdminHandler):
                     score = float(score)
                 except (TypeError, ValueError):
                     score = 0.0
-                score_emoji = "🟢" if score >= 80 else "🟡" if score >= 60 else "🔴"
+                score_emoji = "ðŸŸ¢" if score >= 80 else "ðŸŸ¡" if score >= 60 else "ðŸ”´"
                 
                 date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else (str(date)[:10] if date else '-')
-                message += f"📅 **{date_str}**\n"
+                message += f"ðŸ“… **{date_str}**\n"
                 message += f"{score_emoji} {t('admin.health.run.completed.score', lang, emoji=score_emoji, score=f'{score:.1f}')}\n"
-                message += f"• {t('admin.health.menu.stats.weapons', lang, n=weapons)} | {t('admin.health.menu.stats.attachments', lang, n=attachments)}\n"
-                message += f"• {t('admin.health.stats.with_images', lang, n=with_img)} | {t('admin.health.stats.without_images', lang, n=without_img)}\n\n"
+                message += f"â€¢ {t('admin.health.menu.stats.weapons', lang, n=weapons)} | {t('admin.health.menu.stats.attachments', lang, n=attachments)}\n"
+                message += f"â€¢ {t('admin.health.stats.with_images', lang, n=with_img)} | {t('admin.health.stats.without_images', lang, n=without_img)}\n\n"
         else:
             message += t('admin.health.history.none', lang)
             
@@ -643,7 +643,7 @@ class DataHealthReportHandler(BaseAdminHandler):
                     current_category = category
                     message += f"\n**{category}:**\n"
                     
-                mode_emoji = "🪂" if mode == "br" else "🎮"
+                mode_emoji = "ðŸª‚" if mode == "br" else "ðŸŽ®"
                 message += f"{mode_emoji} {weapon} - {name} (`{code}`)\n"
                 
             message += "\n" + t('admin.health.missing_images.hint.title', lang) + "\n"
@@ -707,12 +707,12 @@ class DataHealthReportHandler(BaseAdminHandler):
                 count = row.get('count')
                 attachments = row.get('attachments')
 
-                message += f"• `{code}` - {count} {t('admin.health.issue.unit', lang)}\n"
+                message += f"â€¢ `{code}` - {count} {t('admin.health.issue.unit', lang)}\n"
                 att_list = attachments.split(',')
-                for att in att_list[:3]:  # نمایش 3 مورد اول
-                    message += f"  • {att.strip()}\n"
+                for att in att_list[:3]:  # Ù†Ù…Ø§ÛŒØ´ 3 Ù…ÙˆØ±Ø¯ Ø§ÙˆÙ„
+                    message += f"  â€¢ {att.strip()}\n"
                 if len(att_list) > 3:
-                    message += f"  • {t('common.items_other_count', lang, n=len(att_list) - 3)}\n"
+                    message += f"  â€¢ {t('common.items_other_count', lang, n=len(att_list) - 3)}\n"
                 message += "\n"
                 
             message += t('admin.health.duplicates.note', lang) + "\n\n"
@@ -777,7 +777,7 @@ class DataHealthReportHandler(BaseAdminHandler):
                 name = row.get('name')
                 code = row.get('code')
                 weapon_id = row.get('weapon_id')
-                message += f"• {name} (`{code}`)\n"
+                message += f"â€¢ {name} (`{code}`)\n"
                 message += t('admin.health.orphaned.weapon_id', lang, id=weapon_id) + "\n\n"
                 
             message += t('admin.health.orphaned.note', lang) + "\n\n"
@@ -924,7 +924,7 @@ class DataHealthReportHandler(BaseAdminHandler):
         document = update.message.document
         
         # Check file extension
-        if not document.file_name.endswith('.db'):
+        if not (document.file_name.endswith('.db') or document.file_name.endswith('.sql')):
             await update.message.reply_text(
                 t('admin.health.restore.invalid_format', lang) + "\n" + t('admin.health.restore.start.cancel', lang)
             )
