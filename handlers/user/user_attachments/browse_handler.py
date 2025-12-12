@@ -50,9 +50,13 @@ async def browse_attachments_menu(update: Update, context: ContextTypes.DEFAULT_
         )
         return
     
-    # اگر یکی باشه، تک تک
-    for btn in mode_buttons:
-        keyboard.append([btn])
+    # If there are exactly 2 modes (standard case), show them in one row
+    if len(mode_buttons) == 2:
+        keyboard.append(mode_buttons)
+    else:
+        # Otherwise stack them (e.g. only 1 mode enabled)
+        for btn in mode_buttons:
+            keyboard.append([btn])
     
     keyboard.append([InlineKeyboardButton(t("menu.buttons.back", lang), callback_data="ua_menu")])
     

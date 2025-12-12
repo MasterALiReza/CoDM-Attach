@@ -441,7 +441,7 @@ CREATE INDEX IF NOT EXISTS idx_ua_top_users_approved ON ua_top_users_cache (appr
 CREATE TABLE IF NOT EXISTS data_health_checks (
     id SERIAL PRIMARY KEY,
     check_type TEXT NOT NULL,
-    severity TEXT NOT NULL CHECK (severity IN ('info', 'warning', 'error', 'critical')),
+    severity TEXT NOT NULL,
     category TEXT,
     issue_count INTEGER NOT NULL DEFAULT 0,
     details JSONB,
@@ -503,6 +503,12 @@ SELECT r.id, p.perm FROM roles r,
     ) AS p(role, perm)
 WHERE r.name = p.role
 ON CONFLICT DO NOTHING;
+
+-- Enable User Attachment System by default
+INSERT INTO user_attachment_settings (setting_key, setting_value, updated_at)
+VALUES ('system_enabled', '1', NOW())
+ON CONFLICT (setting_key) 
+DO UPDATE SET setting_value = '1', updated_at = NOW();
 
 -- Initialize cache
 INSERT INTO ua_stats_cache (id) VALUES (1) ON CONFLICT DO NOTHING;
