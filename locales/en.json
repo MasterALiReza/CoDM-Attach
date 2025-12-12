@@ -1636,5 +1636,14 @@
   "admin.health.restore.success.title": "✅ **Backup restored**",
   "admin.health.restore.success.safety_backup": "📦 Safety backup before restore: `{file}`",
   "admin.health.restore.success.restart": "▶️ To fully apply, restart the bot:\n`{cmd}`",
-  "admin.health.restore.error": "❌ **Restore error**\n\n`{err}`\n\nPlease try again later or contact the system admin."
+  "admin.health.restore.error": "❌ **Restore error**\n\n`{err}`\n\nPlease try again later or contact the system admin.",
+  "admin.ua.buttons.manage": "🛠 Manage Advanced",
+  "admin.ua.manage.menu_title": "🛠 **User Attachments Management**\n\nPlease select an option:",
+  "admin.ua.manage.search_user": "🔍 Search User",
+  "admin.ua.manage.search_prompt": "🔍 **Search User**\n\nPlease enter the **Username** (without @) or **User ID**:",
+  "admin.ua.manage.list_title": "📋 **User Attachments List**\n🆔 User ID: `{user_id}`\n📦 Total: {total}",
+  "admin.ua.manage.no_attachments": "❌ This user has no attachments.",
+  "ua.my.delete_confirm": "⚠️ **Are you sure you want to delete this attachment?**\n\nThis action cannot be undone!",
+  "common.yes": "✅ Yes",
+  "common.no": "❌ No"
 }

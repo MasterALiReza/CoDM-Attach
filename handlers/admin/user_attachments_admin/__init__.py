@@ -12,6 +12,7 @@ from .stats_handler import stats_handlers
 from .banned_handler import banned_handlers
 from .reports_handler import reports_handlers
 from .settings_handler import settings_handlers
+from .manage_handler import manage_handlers
 
 # ترکیب تمام handlers
 all_ua_admin_handlers = (
@@ -19,7 +20,8 @@ all_ua_admin_handlers = (
     stats_handlers + 
     banned_handlers + 
     reports_handlers + 
-    settings_handlers
+    settings_handlers +
+    manage_handlers
 )
 
 __all__ = [
@@ -30,5 +32,6 @@ __all__ = [
     'banned_handlers',
     'reports_handlers',
     'settings_handlers',
+    'manage_handlers',
     'all_ua_admin_handlers'
 ]

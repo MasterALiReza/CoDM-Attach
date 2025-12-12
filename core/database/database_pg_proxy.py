@@ -1792,6 +1792,50 @@ class DatabasePostgresProxy(DatabasePostgres):
         except Exception as e:
             log_exception(logger, e, f"reject_user_attachment({attachment_id})")
             return False
+
+    def delete_user_attachment(self, attachment_id: int) -> bool:
+        """حذف کامل اتچمنت کاربر و آپدیت آمار"""
+        try:
+            with self.transaction() as conn:
+                cursor = conn.cursor()
+                
+                # دریافت اطلاعات قبل از حذف
+                cursor.execute("""
+                    SELECT user_id, status FROM user_attachments WHERE id = %s
+                """, (attachment_id,))
+                
+                row = cursor.fetchone()
+                if not row:
+                    cursor.close()
+                    return False
+                
+                user_id = row['user_id']
+                status = row['status']
+                
+                # حذف
+                cursor.execute("DELETE FROM user_attachments WHERE id = %s", (attachment_id,))
+                
+                # آپدیت آمار (کاهش شمارنده‌ها)
+                status_col = f"{status}_count"  # approved_count, rejected_count, pending_count
+                if status == 'pending':
+                    status_col = 'pending_count' # just to be safe if naming differs, but schema is pending_count
+                
+                # ساخت کوئری دینامیک برای آپدیت صحیح
+                # نکته: اگر status نامعتبر باشد خطا می‌دهد، اما ما enum داریم
+                update_query = f"""
+                    UPDATE user_submission_stats
+                    SET total_submissions = GREATEST(0, total_submissions - 1),
+                        {status_col} = GREATEST(0, {status_col} - 1)
+                    WHERE user_id = %s
+                """
+                cursor.execute(update_query, (user_id,))
+                
+                cursor.close()
+                logger.info(f"✅ User attachment {attachment_id} deleted (Status: {status})")
+                return True
+        except Exception as e:
+            log_exception(logger, e, f"delete_user_attachment({attachment_id})")
+            return False
     
     # ==========================================================================
     # Phase 2: Admin Management - Day 1

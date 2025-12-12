@@ -192,6 +192,11 @@ async def show_ua_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
         InlineKeyboardButton(t('admin.ua.buttons.settings', lang), callback_data="ua_admin_settings")
     ])
     
+    # دکمه مدیریت پیشرفته (جدید)
+    keyboard.append([
+        InlineKeyboardButton(t('admin.ua.buttons.manage', lang) + " 🛠️", callback_data="ua_admin_manage")
+    ])
+    
     # دکمه بازگشت
     keyboard.append([InlineKeyboardButton(t('admin.ua.buttons.back_admin', lang), callback_data="admin_back")])
     

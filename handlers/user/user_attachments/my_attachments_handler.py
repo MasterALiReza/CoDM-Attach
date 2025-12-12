@@ -277,8 +277,8 @@ async def show_my_attachment_detail(update: Update, context: ContextTypes.DEFAUL
     # کیبورد
     keyboard = []
     
-    if attachment['status'] == 'pending':
-        keyboard.append([InlineKeyboardButton(t("menu.buttons.delete", lang), callback_data=f"ua_my_delete_{attachment_id}")])
+    # دکمه حذف برای همه وضعیت‌ها فعال است
+    keyboard.append([InlineKeyboardButton(t("menu.buttons.delete", lang), callback_data=f"ua_my_ask_del_{attachment_id}")])
     
     keyboard.append([InlineKeyboardButton(t("menu.buttons.back", lang), callback_data=f"ua_my_{attachment['status']}")])
     
@@ -302,47 +302,74 @@ async def show_my_attachment_detail(update: Update, context: ContextTypes.DEFAUL
         logger.warning(f"Failed to delete previous my_attachments detail message: {e}")
 
 
-async def delete_my_attachment(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """حذف اتچمنت شخصی (فقط pending)"""
+async def ask_delete_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """پرسش برای تایید حذف"""
+    query = update.callback_query
+    await query.answer()
+    lang = get_user_lang(update, context, db) or 'fa'
+    
+    attachment_id = int(query.data.replace('ua_my_ask_del_', ''))
+    
+    keyboard = [
+        [
+            InlineKeyboardButton(t("common.yes", lang) + " 🗑️", callback_data=f"ua_my_confirm_del_{attachment_id}"),
+            InlineKeyboardButton(t("common.no", lang), callback_data=f"ua_my_detail_{attachment_id}")
+        ]
+    ]
+    
+    try:
+        # اگر پیام عکس است، کپشن را ادیت می‌کنیم
+        await query.edit_message_caption(
+            caption=t("ua.my.delete_confirm", lang),
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    except Exception:
+        # اگر خطا داد (مثلاً اگر عکس نیست)، متن را ادیت می‌کنیم
+        try:
+            await query.edit_message_text(
+                t("ua.my.delete_confirm", lang),
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+        except Exception:
+             # Fallback: ارسال پیام جدید
+            await query.message.reply_text(
+                t("ua.my.delete_confirm", lang),
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+
+
+async def perform_delete_my_attachment(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """اجرای حذف اتچمنت شخصی"""
     query = update.callback_query
     
-    attachment_id = int(query.data.replace('ua_my_delete_', ''))
+    attachment_id = int(query.data.replace('ua_my_confirm_del_', ''))
     user_id = update.effective_user.id
+    lang = get_user_lang(update, context, db) or 'fa'
     
-    # بررسی مالکیت و وضعیت
+    # بررسی مالکیت
     attachment = db.get_user_attachment(attachment_id)
     
     if not attachment or attachment['user_id'] != user_id:
-        lang = get_user_lang(update, context, db) or 'fa'
         await query.answer(t('error.unauthorized', lang), show_alert=True)
         return
     
-    if attachment['status'] != 'pending':
-        lang = get_user_lang(update, context, db) or 'fa'
-        await query.answer(t('ua.error.delete_only_pending', lang), show_alert=True)
-        return
-    
-    # حذف
+    # حذف با متد جدید دیتابیس
     try:
-        with db.transaction() as tconn:
-            cur = tconn.cursor()
-            cur.execute("DELETE FROM user_attachments WHERE id = %s", (attachment_id,))
-        lang = get_user_lang(update, context, db) or 'fa'
-        await query.answer(t('ua.success.deleted', lang), show_alert=True)
-        
-        # حذف تصویر و بازگشت
-        try:
-            await query.message.delete()
-        except Exception as e:
-            logger.warning(f"Failed to delete my_attachments message after delete: {e}")
-        
-        # نمایش لیست pending
-        context.user_data['temp_callback_data'] = 'ua_my_pending'
-        await show_my_attachments_by_status(update, context)
-        
+        if db.delete_user_attachment(attachment_id):
+            await query.answer(t('ua.success.deleted', lang), show_alert=True)
+            
+            # حذف پیام و بازگشت
+            try:
+                await query.message.delete()
+            except Exception as e:
+                logger.warning(f"Failed to delete message after delete: {e}")
+            
+            # نمایش لیست pending (یا وضعیت قبلی اگر ذخیره شده باشد، اما پیش‌فرض pending خوب است)
+            # بهتر است به منوی اصلی برگردیم چون شاید لیست خالی شده باشد
+            await my_attachments_menu(update, context)
+            
     except Exception as e:
-        logger.error(f"Error deleting attachment: {e}")
-        lang = get_user_lang(update, context, db) or 'fa'
+        logger.error(f"Error deleting attachment {attachment_id}: {e}")
         await query.answer(t('error.generic', lang), show_alert=True)
 
 
@@ -370,7 +397,9 @@ async def back_from_detail(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Export handlers
 my_attachments_handlers = [
     CallbackQueryHandler(show_my_attachment_detail, pattern="^ua_my_detail_\\d+$"),
-    CallbackQueryHandler(delete_my_attachment, pattern="^ua_my_delete_\\d+$"),
+    CallbackQueryHandler(ask_delete_confirmation, pattern="^ua_my_ask_del_\\d+$"),
+    CallbackQueryHandler(perform_delete_my_attachment, pattern="^ua_my_confirm_del_\\d+$"),
     CallbackQueryHandler(show_my_attachments_by_status, pattern="^ua_my_(pending|approved|rejected)$"),
     CallbackQueryHandler(my_attachments_menu, pattern="^ua_my$"),
 ]
+
