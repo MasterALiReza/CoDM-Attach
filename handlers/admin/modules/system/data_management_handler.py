@@ -165,18 +165,26 @@ class DataManagementHandler(BaseAdminHandler):
             from datetime import datetime
             self.db.set_setting("last_backup_timestamp", datetime.now().strftime("%Y-%m-%d %H:%M"))
 
-            await query.edit_message_text(
-                t("admin.backup.created", lang, filename=os.path.basename(backup_file)),
-                reply_markup=InlineKeyboardMarkup(keyboard)
-            )
-            
-            # Send file
+            # Send file FIRST
             with open(backup_file, 'rb') as f:
                 await query.message.reply_document(
                     document=f,
                     filename=os.path.basename(backup_file),
                     caption=t("admin.backup.file_caption", lang)
                 )
+
+            # Then delete the processing message (so we don't have duplicates or wrong order)
+            try:
+                await query.message.delete()
+            except Exception:
+                pass # If can't delete, ignore
+            
+            # Send Success message with the back button AS A NEW MESSAGE (so it is at bottom)
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=t("admin.backup.created", lang, filename=os.path.basename(backup_file)),
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
         else:
             await query.edit_message_text(
                 t("admin.backup.error", lang),
