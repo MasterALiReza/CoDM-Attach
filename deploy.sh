@@ -716,6 +716,23 @@ update_bot() {
     sudo -u $BOT_USER "$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt" --upgrade >/dev/null 2>&1
     print_success "Libraries updated"
     
+    # Run database migrations
+    if [ -d "$INSTALL_DIR/scripts/migrations" ]; then
+        print_step "Running database migrations..."
+        source "$INSTALL_DIR/.env"
+        
+        for migration in "$INSTALL_DIR/scripts/migrations"/*.sql; do
+            if [ -f "$migration" ]; then
+                migration_name=$(basename "$migration")
+                print_info "Running: $migration_name"
+                PGPASSWORD="$POSTGRES_PASSWORD" psql -h "${POSTGRES_HOST:-localhost}" \
+                    -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+                    -f "$migration" 2>/dev/null || true
+            fi
+        done
+        
+        print_success "Migrations completed"
+    fi
 
     
     # Restart service
