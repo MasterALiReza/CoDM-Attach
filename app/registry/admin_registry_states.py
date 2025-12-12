@@ -412,6 +412,19 @@ def get_admin_conversation_states(admin_handlers):
             CallbackQueryHandler(admin_handlers.admin_faq_set_lang, pattern="^adm_faq_lang_"),
             CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
         ],
+        # ========== Direct Contact States ==========
+        DIRECT_CONTACT_NAME: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handlers.direct_contact_name_received),
+            CallbackQueryHandler(admin_handlers.admin_direct_contact_menu, pattern="^adm_direct_contact$"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
+        ],
+        DIRECT_CONTACT_LINK: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handlers.direct_contact_link_received),
+            CallbackQueryHandler(admin_handlers.admin_direct_contact_menu, pattern="^adm_direct_contact$"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
+        ],
     }
 
     
