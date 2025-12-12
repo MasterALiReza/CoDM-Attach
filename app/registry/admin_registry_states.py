@@ -62,6 +62,8 @@ def get_admin_conversation_states(admin_handlers):
             ),
             CallbackQueryHandler(admin_handlers.admin_start, pattern="^admin_menu$"),
             CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_back$"),
+            # Notification logic routing
+            CallbackQueryHandler(admin_handlers.admin_menu, pattern="^notify_"),
             # مدیریت ادمین‌ها
             CallbackQueryHandler(admin_handlers.admin_menu, pattern="^manage_admins$"),
             CallbackQueryHandler(admin_handlers.add_admin_start, pattern="^add_new_admin$"),

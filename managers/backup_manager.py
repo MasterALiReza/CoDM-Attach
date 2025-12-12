@@ -529,6 +529,7 @@ class BackupManager:
         backups.sort(key=lambda x: x['created'], reverse=True)
         return backups
     
+
     def cleanup_old_backups(self, keep_count: int = 10):
         """حذف backup های قدیمی و نگه داشتن تعداد محدود"""
         backups = self.list_backups()
@@ -540,3 +541,12 @@ class BackupManager:
                     logger.info(f"Old backup removed: {backup['filename']}")
                 except Exception as e:
                     logger.error(f"Error removing old backup: {e}")
+
+    def get_last_backup_info(self) -> Optional[Dict[str, Any]]:
+        """Get information about the most recent backup"""
+        backups = self.list_backups()
+        if not backups:
+            return None
+        
+        # backups are already sorted by date desc in list_backups
+        return backups[0]

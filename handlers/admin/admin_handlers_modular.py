@@ -19,9 +19,10 @@ from handlers.admin.modules.analytics import AttachmentsDashboardHandler
 from handlers.admin.modules.reports import DataHealthReportHandler
 from handlers.admin.modules.system import (
     NotificationHandler,
-    StatsBackupHandler,
+    # StatsBackupHandler,  # Replaced by DataManagementHandler
     ImportExportHandler,
-    AdminManagementHandler
+    AdminManagementHandler,
+    DataManagementHandler # Added
 )
 from handlers.admin.modules.support import (
     FAQHandler,
@@ -144,7 +145,8 @@ class AdminHandlers(BaseAdminHandler):
         """مقداردهی اولیه handlers مربوط به سیستم"""
         # System handlers
         self.notification_handler = NotificationHandler(self.db)
-        self.stats_backup_handler = StatsBackupHandler(self.db)
+        # self.stats_backup_handler = StatsBackupHandler(self.db) # Deprecated
+        self.data_mgmt_handler = DataManagementHandler(self.db)
         self.import_export_handler = ImportExportHandler(self.db)
         self.admin_mgmt_handler = AdminManagementHandler(self.db)
         self.admin_mgmt_handler.set_role_manager(self.role_manager)
@@ -176,8 +178,12 @@ class AdminHandlers(BaseAdminHandler):
         self.schedule_edit_text_start = self.notification_handler.schedule_edit_text_start
         self.schedule_edit_text_received = self.notification_handler.schedule_edit_text_received
         
-        # Backup only (Stats removed)
-        self.create_backup = self.stats_backup_handler.create_backup
+        # Backup & Data Management (Comprehensive)
+        self.data_management_menu = self.data_mgmt_handler.data_management_menu
+        self.create_backup = self.data_mgmt_handler.create_backup
+        self.auto_backup_menu = self.data_mgmt_handler.auto_backup_menu
+        self.toggle_auto_backup = self.data_mgmt_handler.toggle_auto_backup
+        self.set_auto_backup_interval = self.data_mgmt_handler.set_auto_backup_interval
         
         # Import/Export
         self.import_start = self.import_export_handler.import_start
@@ -524,6 +530,18 @@ class AdminHandlers(BaseAdminHandler):
             return await self.data_management_menu(update, context)
         elif action == "admin_backup":
             return await self.create_backup(update, context)
+        # New Backup Logic from DataManagementHandler
+        elif action == "admin_create_backup":
+            return await self.create_backup(update, context) # This now points to DataManagementHandler.create_backup
+        elif action == "admin_auto_backup_menu":
+            return await self.auto_backup_menu(update, context)
+        elif action == "toggle_auto_backup":
+            return await self.toggle_auto_backup(update, context)
+        elif action.startswith("set_ab_interval_"):
+            return await self.set_auto_backup_interval(update, context)
+        elif action == "restore_backup":
+            return await self.restore_backup_start(update, context)
+
         elif action == "admin_import":
             return await self.import_start(update, context)
         elif action == "admin_export":

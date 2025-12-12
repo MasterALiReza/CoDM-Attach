@@ -30,6 +30,7 @@ from core.database.database_adapter import get_database_adapter
 from handlers.admin.admin_handlers_modular import AdminHandlers
 from core.cache.cache_manager import cache_cleanup_task
 from managers.notification_scheduler import NotificationScheduler
+from managers.backup_scheduler import BackupScheduler
 from handlers.contact.contact_handlers import ContactHandlers
 from utils.subscribers_pg import SubscribersPostgres as Subscribers
 from utils.error_handler import ErrorHandler
@@ -54,6 +55,7 @@ class CODMAttachmentsBot:
         self.admin_handlers = AdminHandlers(self.db)
         self.contact_handlers = ContactHandlers(self.db)  # Initialize ContactHandlers
         self.notification_scheduler = NotificationScheduler(self.db)
+        self.backup_scheduler = BackupScheduler(self.db)
         self.notification_manager = None  # Will be initialized later if needed
         self.application = None
         self.is_shutting_down = False
@@ -134,6 +136,14 @@ class CODMAttachmentsBot:
             logger.info("Notification scheduler started in post_init")
         except Exception as e:
             logger.error(f"Failed to start notification scheduler: {e}")
+        # Start backup scheduler
+        try:
+            await self.backup_scheduler.start(application)
+            # Store scheduler in bot_data for handlers
+            application.bot_data['backup_scheduler'] = self.backup_scheduler
+            logger.info("Backup scheduler started in post_init")
+        except Exception as e:
+            logger.error(f"Failed to start backup scheduler: {e}")
         # Start Cache Cleanup Task for periodic cache expiration cleanup
         try:
             asyncio.create_task(cache_cleanup_task())
@@ -160,6 +170,15 @@ class CODMAttachmentsBot:
                     logger.info("✅ Notification scheduler stopped")
                 except Exception as e:
                     logger.warning(f"Failed to stop notification scheduler: {e}")
+
+            # 1.5. Stop backup scheduler
+            if hasattr(self, 'backup_scheduler') and self.backup_scheduler:
+                try:
+                    if hasattr(self.application, 'job_queue'):
+                        await self.backup_scheduler.stop(self.application)
+                        logger.info("✅ Backup scheduler stopped")
+                except Exception as e:
+                    logger.warning(f"Failed to stop backup scheduler: {e}")
 
             # 2. Flush pending notifications
             if hasattr(self, 'notification_manager') and self.notification_manager:
