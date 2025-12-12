@@ -452,6 +452,22 @@ def get_admin_conversation_states(admin_handlers):
             CallbackQueryHandler(admin_handlers.guide_section_menu, pattern="^gsel_"),
             CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
         ],
+        # ========== Import/Export States ==========
+        IMPORT_FILE: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            MessageHandler(filters.DOCUMENT, admin_handlers.import_file_received),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$|^admin_data_management$")
+        ],
+        IMPORT_MODE: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            CallbackQueryHandler(admin_handlers.import_mode_selected, pattern="^import_merge$|^import_replace$"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
+        ],
+        EXPORT_TYPE: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            CallbackQueryHandler(admin_handlers.export_type_selected, pattern="^export_json$|^export_csv$|^export_backup$"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$|^admin_data_management$")
+        ],
     }
 
     
