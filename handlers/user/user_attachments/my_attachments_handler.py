@@ -355,7 +355,7 @@ async def perform_delete_my_attachment(update: Update, context: ContextTypes.DEF
     
     # حذف با متد جدید دیتابیس
     try:
-        if db.delete_user_attachment(attachment_id):
+        if db.delete_user_attachment(attachment_id, deleted_by=user_id):
             await query.answer(t('ua.success.deleted', lang), show_alert=True)
             
             # حذف پیام و بازگشت

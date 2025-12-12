@@ -105,6 +105,7 @@ class UACache:
                             COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
                             COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved_count,
                             COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected_count,
+                            COUNT(CASE WHEN status = 'deleted' THEN 1 END) as deleted_count,
                             COUNT(CASE WHEN mode = 'br' AND status = 'approved' THEN 1 END) as br_count,
                             COUNT(CASE WHEN mode = 'mp' AND status = 'approved' THEN 1 END) as mp_count,
                             COUNT(DISTINCT user_id) as total_users,
@@ -147,17 +148,18 @@ class UACache:
                         tcur.execute(
                             """
                             INSERT INTO ua_stats_cache (
-                                id, total_attachments, pending_count, approved_count, rejected_count,
+                                id, total_attachments, pending_count, approved_count, rejected_count, deleted_count,
                                 total_users, active_users, banned_users, br_count, mp_count,
                                 total_likes, total_reports, pending_reports,
                                 last_week_submissions, last_week_approvals,
                                 updated_at
-                            ) VALUES (1, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                            ) VALUES (1, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
                             ON CONFLICT (id) DO UPDATE SET
                                 total_attachments = EXCLUDED.total_attachments,
                                 pending_count = EXCLUDED.pending_count,
                                 approved_count = EXCLUDED.approved_count,
                                 rejected_count = EXCLUDED.rejected_count,
+                                deleted_count = EXCLUDED.deleted_count,
                                 total_users = EXCLUDED.total_users,
                                 active_users = EXCLUDED.active_users,
                                 banned_users = EXCLUDED.banned_users,
@@ -172,7 +174,7 @@ class UACache:
                             """,
                             (
                                 stats['total_attachments'], stats['pending_count'], stats['approved_count'],
-                                stats['rejected_count'], stats['total_users'], stats['active_users'],
+                                stats['rejected_count'], stats.get('deleted_count', 0), stats['total_users'], stats['active_users'],
                                 stats['banned_users'], stats['br_count'], stats['mp_count'],
                                 stats['total_likes'], stats['total_reports'], stats['pending_reports'],
                                 stats['last_week_submissions'], stats['last_week_approvals']

@@ -1793,49 +1793,153 @@ class DatabasePostgresProxy(DatabasePostgres):
             log_exception(logger, e, f"reject_user_attachment({attachment_id})")
             return False
 
-    def delete_user_attachment(self, attachment_id: int) -> bool:
-        """حذف کامل اتچمنت کاربر و آپدیت آمار"""
+    def delete_user_attachment(self, attachment_id: int, deleted_by: int = None) -> bool:
+        """حذف اتچمنت کاربر (Soft Delete)"""
         try:
-            with self.transaction() as conn:
+            with self.get_connection() as conn:
                 cursor = conn.cursor()
-                
-                # دریافت اطلاعات قبل از حذف
-                cursor.execute("""
-                    SELECT user_id, status FROM user_attachments WHERE id = %s
-                """, (attachment_id,))
-                
-                row = cursor.fetchone()
-                if not row:
-                    cursor.close()
+                # ابتدا دریافت اطلاعات برای آپدیت آمار
+                cursor.execute("SELECT user_id, status FROM user_attachments WHERE id = %s", (attachment_id,))
+                result = cursor.fetchone()
+                if not result:
                     return False
                 
-                user_id = row['user_id']
-                status = row['status']
+                user_id = result['user_id']
+                status = result['status']
                 
-                # حذف
-                cursor.execute("DELETE FROM user_attachments WHERE id = %s", (attachment_id,))
+                if status == 'deleted':
+                    return True
                 
-                # آپدیت آمار (کاهش شمارنده‌ها)
-                status_col = f"{status}_count"  # approved_count, rejected_count, pending_count
-                if status == 'pending':
-                    status_col = 'pending_count' # just to be safe if naming differs, but schema is pending_count
+                # Soft Delete
+                cursor.execute("""
+                    UPDATE user_attachments
+                    SET status = 'deleted',
+                        deleted_at = NOW(),
+                        deleted_by = %s
+                    WHERE id = %s
+                """, (deleted_by, attachment_id))
                 
-                # ساخت کوئری دینامیک برای آپدیت صحیح
-                # نکته: اگر status نامعتبر باشد خطا می‌دهد، اما ما enum داریم
-                update_query = f"""
-                    UPDATE user_submission_stats
-                    SET total_submissions = GREATEST(0, total_submissions - 1),
-                        {status_col} = GREATEST(0, {status_col} - 1)
-                    WHERE user_id = %s
-                """
-                cursor.execute(update_query, (user_id,))
+                # آپدیت آمار: کم کردن از وضعیت قبلی
+                if status == 'approved':
+                    cursor.execute("""
+                        UPDATE user_submission_stats
+                        SET approved_count = GREATEST(0, approved_count - 1),
+                            deleted_count = deleted_count + 1
+                        WHERE user_id = %s
+                    """, (user_id,))
+                elif status == 'rejected':
+                    cursor.execute("""
+                        UPDATE user_submission_stats
+                        SET rejected_count = GREATEST(0, rejected_count - 1),
+                            deleted_count = deleted_count + 1
+                        WHERE user_id = %s
+                    """, (user_id,))
+                elif status == 'pending':
+                    cursor.execute("""
+                        UPDATE user_submission_stats
+                        SET pending_count = GREATEST(0, pending_count - 1),
+                            deleted_count = deleted_count + 1
+                        WHERE user_id = %s
+                    """, (user_id,))
+                else:
+                     # For any other status (e.g. irrelevant), just increment deleted_count
+                    cursor.execute("""
+                        UPDATE user_submission_stats
+                        SET deleted_count = deleted_count + 1
+                        WHERE user_id = %s
+                    """, (user_id,))
                 
-                cursor.close()
-                logger.info(f"✅ User attachment {attachment_id} deleted (Status: {status})")
+                conn.commit()
+                logger.info(f"✅ User attachment {attachment_id} soft-deleted (Status: {status})")
                 return True
         except Exception as e:
-            log_exception(logger, e, f"delete_user_attachment({attachment_id})")
+            logger.error(f"Error soft-deleting user attachment: {e}")
             return False
+
+    def restore_user_attachment(self, attachment_id: int) -> bool:
+        """بازگردانی اتچمنت به وضعیت pending"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT user_id, status FROM user_attachments WHERE id = %s", (attachment_id,))
+                result = cursor.fetchone()
+                if not result:
+                    return False
+                
+                user_id = result['user_id']
+                status = result['status']
+                
+                if status == 'pending':
+                    return True
+                
+                # Restore to pending
+                cursor.execute("""
+                    UPDATE user_attachments
+                    SET status = 'pending',
+                        deleted_at = NULL,
+                        deleted_by = NULL,
+                        rejection_reason = NULL,
+                        rejected_at = NULL,
+                        rejected_by = NULL,
+                        approved_at = NULL,
+                        approved_by = NULL
+                    WHERE id = %s
+                """, (attachment_id,))
+                
+                # آپدیت آمار: کم کردن از وضعیت قبلی و اضافه به pending
+                if status == 'approved':
+                    cursor.execute("UPDATE user_submission_stats SET approved_count = GREATEST(0, approved_count - 1) WHERE user_id = %s", (user_id,))
+                elif status == 'rejected':
+                    cursor.execute("UPDATE user_submission_stats SET rejected_count = GREATEST(0, rejected_count - 1) WHERE user_id = %s", (user_id,))
+                elif status == 'deleted':
+                    cursor.execute("UPDATE user_submission_stats SET deleted_count = GREATEST(0, deleted_count - 1) WHERE user_id = %s", (user_id,))
+                
+                cursor.execute("UPDATE user_submission_stats SET pending_count = pending_count + 1 WHERE user_id = %s", (user_id,))
+                
+                conn.commit()
+                logger.info(f"✅ User attachment {attachment_id} restored to pending")
+                return True
+        except Exception as e:
+            logger.error(f"Error restoring user attachment: {e}")
+            return False
+
+    def get_attachments_by_status(self, status: str, page: int = 1, limit: int = 10) -> tuple[list[dict], int]:
+        """دریافت لیست اتچمنت‌ها بر اساس وضعیت با صفحه‌بندی"""
+        offset = (page - 1) * limit
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # دریافت تعداد کل
+                cursor.execute("SELECT COUNT(*) FROM user_attachments WHERE status = %s", (status,))
+                result = cursor.fetchone()
+                total_count = result[0] if result else 0
+                
+                # دریافت داده‌ها
+                cursor.execute("""
+                    SELECT 
+                        ua.*,
+                        u.username, u.first_name,
+                        CASE 
+                            WHEN ua.status = 'approved' THEN ua.approved_at
+                            WHEN ua.status = 'rejected' THEN ua.rejected_at
+                            WHEN ua.status = 'deleted' THEN ua.deleted_at
+                            ELSE ua.submitted_at 
+                        END as action_date
+                    FROM user_attachments ua
+                    LEFT JOIN users u ON ua.user_id = u.user_id
+                    WHERE ua.status = %s
+                    ORDER BY action_date DESC, ua.id DESC
+                    LIMIT %s OFFSET %s
+                """, (status, limit, offset))
+                
+                rows = cursor.fetchall()
+                attachments = [dict(row) for row in rows]
+                
+                return attachments, total_count
+        except Exception as e:
+            logger.error(f"Error getting attachments by status {status}: {e}")
+            return [], 0
     
     # ==========================================================================
     # Phase 2: Admin Management - Day 1

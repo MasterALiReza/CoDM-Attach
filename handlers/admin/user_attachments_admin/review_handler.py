@@ -68,6 +68,7 @@ async def show_ua_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
                         pending_count = int((result or {}).get('pending_count') or 0)
                         approved_count = int((result or {}).get('approved_count') or 0)
                         rejected_count = int((result or {}).get('rejected_count') or 0)
+                        deleted_count = int((result or {}).get('deleted_count') or 0)
                         banned_count = int((result or {}).get('banned_users') or 0)
                         # محاسبه گزارش‌های معلق به صورت جداگانه
                         cursor.execute("SELECT COUNT(*) AS cnt FROM user_attachment_reports WHERE status = 'pending'")
@@ -84,6 +85,7 @@ async def show_ua_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     pending_count = stats.get('pending_count', 0)
                     approved_count = stats.get('approved_count', 0)
                     rejected_count = stats.get('rejected_count', 0)
+                    deleted_count = stats.get('deleted_count', 0)
                     banned_count = stats.get('banned_users', 0)
                     reports_count = stats.get('pending_reports', 0)
                     try:
@@ -103,6 +105,7 @@ async def show_ua_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
                                 (SELECT COUNT(*) FROM user_attachments WHERE status = 'pending') as pending_count,
                                 (SELECT COUNT(*) FROM user_attachments WHERE status = 'approved') as approved_count,
                                 (SELECT COUNT(*) FROM user_attachments WHERE status = 'rejected') as rejected_count,
+                                (SELECT COUNT(*) FROM user_attachments WHERE status = 'deleted') as deleted_count,
                                 (SELECT COUNT(*) FROM user_submission_stats WHERE is_banned = TRUE) as banned_count
                             """
                         )
@@ -110,6 +113,7 @@ async def show_ua_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
                         pending_count = int(result.get('pending_count', 0))
                         approved_count = int(result.get('approved_count', 0))
                         rejected_count = int(result.get('rejected_count', 0))
+                        deleted_count = int(result.get('deleted_count', 0))
                         banned_count = int(result.get('banned_count', 0))
                         # محاسبه تعداد گزارش‌ها در fallback مستقیم
                         cursor.execute("SELECT COUNT(*) AS cnt FROM user_attachment_reports WHERE status = 'pending'")
@@ -121,6 +125,7 @@ async def show_ua_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
             pending_count = stats.get('pending_count', 0) if stats else 0
             approved_count = stats.get('approved_count', 0) if stats else 0
             rejected_count = stats.get('rejected_count', 0) if stats else 0
+            deleted_count = stats.get('deleted_count', 0) if stats else 0
             banned_count = stats.get('banned_users', 0) if stats else 0
             reports_count = stats.get('pending_reports', 0) if stats else 0
         
@@ -132,6 +137,7 @@ async def show_ua_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
         pending_count = 0
         approved_count = 0
         rejected_count = 0
+        deleted_count = 0
         banned_count = 0
         reports_count = 0
     
@@ -145,7 +151,8 @@ async def show_ua_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
         + t('admin.ua.menu.stats.total', lang, n=total_count) + "\n"
         + t('admin.ua.menu.stats.pending', lang, n=pending_count) + "\n"
         + t('admin.ua.menu.stats.approved', lang, n=approved_count) + "\n"
-        + t('admin.ua.menu.stats.rejected', lang, n=rejected_count) + "\n\n"
+        + t('admin.ua.menu.stats.rejected', lang, n=rejected_count) + "\n"
+        + t('admin.ua.menu.stats.deleted', lang, n=deleted_count) + "\n\n"
         + t('admin.ua.menu.stats.banned', lang, n=banned_count) + "\n"
         + t('admin.ua.menu.stats.reports', lang, n=reports_count)
     )
@@ -163,6 +170,10 @@ async def show_ua_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
     keyboard.append([
         InlineKeyboardButton(t('admin.ua.buttons.approved', lang, n=approved_count), callback_data="ua_admin_approved"),
         InlineKeyboardButton(t('admin.ua.buttons.rejected', lang, n=rejected_count), callback_data="ua_admin_rejected")
+    ])
+    
+    keyboard.append([
+        InlineKeyboardButton(t('admin.ua.buttons.deleted', lang, n=deleted_count), callback_data="ua_admin_deleted")
     ])
     
     # دکمه‌های مدیریتی
@@ -192,10 +203,10 @@ async def show_ua_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
         InlineKeyboardButton(t('admin.ua.buttons.settings', lang), callback_data="ua_admin_settings")
     ])
     
-    # دکمه مدیریت پیشرفته (جدید)
-    keyboard.append([
-        InlineKeyboardButton(t('admin.ua.buttons.manage', lang) + " 🛠️", callback_data="ua_admin_manage")
-    ])
+    # Removed Manage button as integrated into lists
+    # keyboard.append([
+    #     InlineKeyboardButton(t('admin.ua.buttons.manage', lang) + " 🛠️", callback_data="ua_admin_manage")
+    # ])
     
     # دکمه بازگشت
     keyboard.append([InlineKeyboardButton(t('admin.ua.buttons.back_admin', lang), callback_data="admin_back")])
@@ -219,8 +230,8 @@ async def show_ua_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
 
 
-async def show_pending_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """نمایش لیست اتچمنت‌های pending"""
+async def _show_attachment_list(update: Update, context: ContextTypes.DEFAULT_TYPE, status: str):
+    """تابع کمکی برای نمایش لیست اتچمنت‌ها بر اساس وضعیت"""
     query = update.callback_query
     await query.answer()
     
@@ -231,88 +242,94 @@ async def show_pending_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     # دریافت صفحه
-    page = 0
-    if 'page_' in query.data:
-        page = int(query.data.split('_')[-1])
+    page = 1
+    # الگوی دیتا: ua_admin_{status}_page_{page} یا ua_admin_{status}
+    data_parts = query.data.split('_')
+    if 'page' in query.data:
+        try:
+            page = int(data_parts[-1])
+        except (ValueError, IndexError):
+            page = 1
+            
+    limit = PENDING_PER_PAGE  # استفاده از همان LIMIT برای همه
     
-    # دریافت pending attachments با batch user loading
     try:
         start_time = time.time()
         
-        # استفاده از cache برای COUNT
-        total = cache.get_paginated_count('pending')
-        
-        # دریافت لیست
-        pending = db.get_user_attachments_by_status('pending', limit=PENDING_PER_PAGE, offset=page * PENDING_PER_PAGE)
-        
-        # Batch load user data برای جلوگیری از N+1 queries
-        if pending:
-            user_ids = [att['user_id'] for att in pending]
-            users_data = cache.batch_get_users(user_ids)
-            for att in pending:
-                user_info = users_data.get(att['user_id'], {})
-                if not att.get('username'):
-                    att['username'] = user_info.get('username', t('user.anonymous', lang))
+        # دریافت لیست و تعداد کل
+        attachments, total_count = db.get_attachments_by_status(status, page=page, limit=limit)
         
         elapsed = (time.time() - start_time) * 1000
-        logger.info(f"Pending list loaded in {elapsed:.2f}ms")
+        logger.info(f"{status.capitalize()} list loaded in {elapsed:.2f}ms")
     except Exception as e:
-        logger.error(f"Error fetching pending attachments: {e}")
-        pending = []
-        total = 0
+        logger.error(f"Error fetching {status} attachments: {e}")
+        attachments = []
+        total_count = 0
     
-    if not pending:
+    if not attachments and page == 1:
+        # لیست خالی
+        msg_key = f'admin.ua.{status}.empty'
+        # اگر کلید خاص وضعیت نباشد، از pending استفاده می‌کنیم (یا باید کلید بسازیم)
+        # برای سادگی فعلا از pending برای همه استفاده نمی‌کنیم، متن جنریک می‌سازیم
+        text = t(f'admin.ua.{status}.empty_desc', lang, default=t('admin.ua.list.empty', lang))
+        
+        keyboard = [[InlineKeyboardButton(t('menu.buttons.back', lang), callback_data="ua_admin_menu")]]
+        
         try:
             await query.edit_message_text(
-                t('admin.ua.pending.empty_title', lang) + "\n\n" + t('admin.ua.pending.empty_desc', lang),
+                text,
                 parse_mode='Markdown',
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton(t('menu.buttons.back', lang), callback_data="ua_admin_menu")
-                ]])
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
         except Exception:
-            # اگه پیام photo بود
-            try:
-                await query.message.delete()
-            except Exception as e:
-                logger.warning(f"Failed to delete UA admin pending-empty message: {e}")
-            await update.effective_chat.send_message(
-                t('admin.ua.pending.empty_title', lang) + "\n\n" + t('admin.ua.pending.empty_desc', lang),
+             await update.effective_chat.send_message(
+                text,
                 parse_mode='Markdown',
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton(t('menu.buttons.back', lang), callback_data="ua_admin_menu")
-                ]])
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
         return
+
+    total_pages = (total_count - 1) // limit + 1
     
-    total_pages = (total - 1) // PENDING_PER_PAGE + 1
+    # عنوان لیست
+    title = t(f'admin.ua.{status}.title', lang, default=status.capitalize())
     
     message = (
-        t('admin.ua.pending.title', lang) + "\n\n"
-        + t('admin.ua.pending.header', lang, total=total, page=page + 1, total_pages=total_pages) + "\n\n"
+        f"📂 *{title}*\n\n"
+        + t('admin.ua.pending.header', lang, total=total_count, page=page, total_pages=total_pages) + "\n\n"
         + t('admin.ua.pending.prompt', lang)
     )
     
     keyboard = []
-    for att in pending:
-        mode_icon = "🎮" if att['mode'] == 'mp' else "🪂"
-        username = att.get('username', t('user.anonymous', lang))
-        weapon_name = att.get('custom_weapon_name', att.get('weapon_name', t('common.unknown', lang)))
-        att_name = att.get('name', att.get('attachment_name', t('attachment.name', lang)))
+    for att in attachments:
+        mode_icon = "🎮" if att.get('mode') == 'mp' else "🪂"
+        username = att.get('username') or t('user.anonymous', lang)
+        weapon_name = att.get('custom_weapon_name') or att.get('weapon_name') or t('common.unknown', lang)
+        att_name = att.get('name') or att.get('attachment_name') or t('attachment.name', lang)
+        
+        # Callback متفاوت برای pending vs بقیه
+        if status == 'pending':
+            cb_data = f"ua_admin_review_{att['id']}"
+        else:
+            cb_data = f"ua_admin_view_{att['id']}"  # View only/Actions
+            
+        display_text = f"{mode_icon} [{weapon_name}] {att_name[:15]} - @{username}"
+        if status == 'deleted':
+             display_text = f"🗑️ {display_text}"
         
         keyboard.append([
             InlineKeyboardButton(
-                f"{mode_icon} [{weapon_name}] {att_name[:20]} - @{username}",
-                callback_data=f"ua_admin_review_{att['id']}"
+                display_text,
+                callback_data=cb_data
             )
         ])
     
     # Pagination
     nav_buttons = []
-    if page > 0:
-        nav_buttons.append(InlineKeyboardButton(t('nav.prev', lang), callback_data=f"ua_admin_pending_page_{page-1}"))
-    if page < total_pages - 1:
-        nav_buttons.append(InlineKeyboardButton(t('nav.next', lang), callback_data=f"ua_admin_pending_page_{page+1}"))
+    if page > 1:
+        nav_buttons.append(InlineKeyboardButton(t('nav.prev', lang), callback_data=f"ua_admin_{status}_page_{page-1}"))
+    if page < total_pages:
+        nav_buttons.append(InlineKeyboardButton(t('nav.next', lang), callback_data=f"ua_admin_{status}_page_{page+1}"))
     
     if nav_buttons:
         keyboard.append(nav_buttons)
@@ -326,16 +343,31 @@ async def show_pending_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     except Exception:
-        # اگه پیام photo بود
         try:
             await query.message.delete()
-        except Exception as e:
-            logger.warning(f"Failed to delete UA admin pending message: {e}")
+        except:
+            pass
         await update.effective_chat.send_message(
             message,
             parse_mode='Markdown',
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
+
+async def show_pending_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """نمایش لیست pending"""
+    await _show_attachment_list(update, context, 'pending')
+
+async def show_approved_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """نمایش لیست approved"""
+    await _show_attachment_list(update, context, 'approved')
+
+async def show_rejected_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """نمایش لیست rejected"""
+    await _show_attachment_list(update, context, 'rejected')
+
+async def show_deleted_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """نمایش لیست deleted"""
+    await _show_attachment_list(update, context, 'deleted')
 
 
 
@@ -525,6 +557,146 @@ async def approve_attachment(update: Update, context: ContextTypes.DEFAULT_TYPE)
             # بازگشت به منوی اصلی
             await show_ua_admin_menu(update, context)
     else:
+        await query.answer(t('error.generic', lang), show_alert=True)
+
+
+async def show_attachment_view(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """نمایش جزئیات اتچمنت (برای وضعیت‌های غیر pending)"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = update.effective_user.id
+    lang = get_user_lang(update, context, db) or 'fa'
+    if not check_ua_admin_permission(user_id):
+        await query.answer(t('error.unauthorized', lang), show_alert=True)
+        return
+    
+    try:
+        attachment_id = int(query.data.replace('ua_admin_view_', ''))
+        attachment = db.get_user_attachment(attachment_id)
+        
+        if not attachment:
+            await query.answer(t('attachment.not_found', lang), show_alert=True)
+            return
+            
+        stats = db.get_user_submission_stats(attachment['user_id'])
+        
+        # Build Caption
+        from html import escape as html_escape
+        mode_name = t(f"mode.{attachment['mode']}_short", lang)
+        username = html_escape(str(attachment.get('username') or t('user.anonymous', lang)))
+        description = html_escape(str(attachment.get('description') or t('common.no_description', lang)))
+        weapon_display = html_escape(str(attachment.get('custom_weapon_name') or attachment.get('weapon_name') or t('common.unknown', lang)))
+        att_name = html_escape(str(attachment.get('name') or attachment.get('attachment_name') or t('attachment.name', lang)))
+        status = attachment['status']
+        
+        caption = (
+            f"📄 <b>{t('admin.ua.view.title', lang)}</b>\n"
+            f"Status: <b>{status.upper()}</b>\n\n"
+            + f"📎 <b>{t('attachment.name', lang)}:</b> {att_name}\n"
+            + f"🎮 <b>{t('mode.label', lang)}:</b> {mode_name}\n"
+            + f"🔫 <b>{t('weapon.label', lang)}:</b> {weapon_display}\n"
+            + f"💬 <b>{t('description.label', lang)}:</b>\n{description}\n\n"
+            + f"👤 <b>{t('admin.ua.review.user_header', lang)}</b>: @{username} (`{attachment['user_id']}`)\n"
+        )
+        
+        # Add status specific info
+        if status == 'approved':
+             caption += f"✅ Approved at: {attachment.get('approved_at')}\n"
+        elif status == 'rejected':
+             caption += f"❌ Rejected at: {attachment.get('rejected_at')}\n"
+             caption += f"❓ Reason: {html_escape(str(attachment.get('rejection_reason') or ''))}\n"
+        elif status == 'deleted':
+             caption += f"🗑️ Deleted at: {attachment.get('deleted_at')}\n"
+             if attachment.get('deleted_by'):
+                 caption += f"By: `{attachment['deleted_by']}`\n"
+        
+        # Buttons
+        keyboard = []
+        
+        # Restore button (for rejected/deleted)
+        if status in ['rejected', 'deleted']:
+            keyboard.append([InlineKeyboardButton("♻️ " + t('admin.ua.buttons.restore', lang, default='Restore'), callback_data=f"ua_admin_restore_{attachment['id']}")])
+            
+        # Delete button (if not already deleted)
+        if status != 'deleted':
+            keyboard.append([InlineKeyboardButton("🗑️ " + t('admin.ua.buttons.delete', lang, default='Delete'), callback_data=f"ua_admin_delete_{attachment['id']}")])
+        
+        # Back button
+        back_status = status if status in ['approved', 'rejected', 'deleted'] else 'pending'
+        keyboard.append([InlineKeyboardButton(t('admin.ua.buttons.back_to_list', lang), callback_data=f"ua_admin_{back_status}")])
+        
+        await query.message.reply_photo(
+            photo=attachment['image_file_id'],
+            caption=caption,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        try:
+            await query.message.delete()
+        except:
+            pass
+            
+    except Exception as e:
+        logger.error(f"Error viewing attachment {attachment_id}: {e}")
+        await query.answer(t('error.generic', lang), show_alert=True)
+
+
+async def delete_attachment_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """حذف اتچمنت توسط ادمین"""
+    query = update.callback_query
+    # Don't answer yet, might need confirmation? No, simple delete for admin is fine usually.
+    
+    user_id = update.effective_user.id
+    lang = get_user_lang(update, context, db) or 'fa'
+    if not check_ua_admin_permission(user_id):
+        await query.answer(t('error.unauthorized', lang), show_alert=True)
+        return
+
+    try:
+        attachment_id = int(query.data.replace('ua_admin_delete_', ''))
+        
+        if db.delete_user_attachment(attachment_id, deleted_by=user_id):
+            cache.invalidate('stats')
+            cache.invalidate('count') # Invalidate all counts
+            await query.answer(t('admin.ua.delete.success', lang, default="Attachment deleted"), show_alert=True)
+            
+            # Go back to menu or deleted list? Deleted list seems appropriate to verify
+            # Or back to the list where we came from? We don't track origin easily. 
+            # Let's go to Deleted list.
+            await show_deleted_list(update, context)
+        else:
+             await query.answer(t('error.generic', lang), show_alert=True)
+             
+    except Exception as e:
+        logger.error(f"Error deleting attachment: {e}")
+        await query.answer(t('error.generic', lang), show_alert=True)
+
+async def restore_attachment_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """بازگردانی اتچمنت"""
+    query = update.callback_query
+    
+    user_id = update.effective_user.id
+    lang = get_user_lang(update, context, db) or 'fa'
+    if not check_ua_admin_permission(user_id):
+        await query.answer(t('error.unauthorized', lang), show_alert=True)
+        return
+
+    try:
+        attachment_id = int(query.data.replace('ua_admin_restore_', ''))
+        
+        if db.restore_user_attachment(attachment_id):
+            cache.invalidate('stats')
+            cache.invalidate('count')
+            await query.answer(t('admin.ua.restore.success', lang, default="Attachment restored to pending"), show_alert=True)
+            
+            # Go to Pending list to review it
+            await show_pending_list(update, context)
+        else:
+             await query.answer(t('error.generic', lang), show_alert=True)
+             
+    except Exception as e:
+        logger.error(f"Error restoring attachment: {e}")
         await query.answer(t('error.generic', lang), show_alert=True)
 
 
@@ -812,8 +984,14 @@ edit_weapon_conv_handler = ConversationHandler(
 ua_admin_handlers = [
     CallbackQueryHandler(show_ua_admin_menu, pattern="^ua_admin_menu$"),
     CallbackQueryHandler(show_pending_list, pattern="^ua_admin_pending"),
+    CallbackQueryHandler(show_approved_list, pattern="^ua_admin_approved"),
+    CallbackQueryHandler(show_rejected_list, pattern="^ua_admin_rejected"),
+    CallbackQueryHandler(show_deleted_list, pattern="^ua_admin_deleted"),
     CallbackQueryHandler(show_attachment_review, pattern="^ua_admin_review_\\d+$"),
+    CallbackQueryHandler(show_attachment_view, pattern="^ua_admin_view_\\d+$"),
     CallbackQueryHandler(approve_attachment, pattern="^ua_admin_approve_\\d+$"),
+    CallbackQueryHandler(delete_attachment_admin, pattern="^ua_admin_delete_\\d+$"),
+    CallbackQueryHandler(restore_attachment_admin, pattern="^ua_admin_restore_\\d+$"),
     reject_conv_handler,
     edit_weapon_conv_handler,
 ]
