@@ -15,8 +15,8 @@ class DataManagementHandler(BaseAdminHandler):
     Replaces the old StatsBackupHandler.
     """
     
-    def __init__(self, db, role_manager=None):
-        super().__init__(db, role_manager)
+    def __init__(self, db):
+        super().__init__(db)
         # We need to initialize BackupScheduler lazily or store it in context application
         self.scheduler = None # Will be retrieved from application.bot_data
 
