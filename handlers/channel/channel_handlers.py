@@ -4,6 +4,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 import logging
+import re
 import os
 from utils.analytics_pg import AnalyticsPostgres as Analytics
 from utils.logger import log_exception
@@ -1384,7 +1385,10 @@ async def reorder_channels_menu(update: Update, context: ContextTypes.DEFAULT_TY
         return await channel_management_menu(update, context)
     
     keyboard = []
-    keyboard.append([InlineKeyboardButton(t('admin.channels.reorder.title', lang), callback_data="noop")])
+    # حذف تگ‌های HTML از عنوان دکمه چون تلگرام ساپورت نمی‌کند
+    title_text = t('admin.channels.reorder.title', lang)
+    clean_title = re.sub('<[^<]+?>', '', title_text)
+    keyboard.append([InlineKeyboardButton(clean_title, callback_data="noop")])
     
     # نمایش کانال‌ها با دکمه‌های ↑↓
     for i, channel in enumerate(channels):
