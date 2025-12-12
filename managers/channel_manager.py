@@ -425,12 +425,14 @@ async def _send_main_menu(query, context: ContextTypes.DEFAULT_TYPE, db, user_id
     # بررسی فعال بودن سیستم اتچمنت کاربران
     try:
         ua_system_enabled = db.get_ua_setting('system_enabled') or '1'
+        logger.info(f"[DEBUG channel_manager] UA system_enabled: {repr(ua_system_enabled)}")
         if ua_system_enabled == '1':
             keyboard.append([kb("menu.buttons.ua", lang), kb("menu.buttons.suggested", lang)])
         else:
             keyboard.append([kb("menu.buttons.suggested", lang)])
-    except Exception:
+    except Exception as e:
         # در صورت خطا، UA رو نشون نده
+        logger.error(f"[ERROR] Exception in UA button check: {e}", exc_info=True)
         keyboard.append([kb("menu.buttons.suggested", lang)])
     
     keyboard.extend([
