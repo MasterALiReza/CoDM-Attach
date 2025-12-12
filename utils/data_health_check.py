@@ -789,13 +789,19 @@ class DataHealthChecker:
         # Print summary
         print(text_report)
         
-        # Save markdown report to file
-        report_path = os.path.join(os.path.dirname(__file__), '..', 'reports', f'health_check_{datetime.now().strftime("%Y%m%d_%H%M%S")}.md')
-        os.makedirs(os.path.dirname(report_path), exist_ok=True)
-        
-        with open(report_path, 'w', encoding='utf-8') as f:
-            f.write(markdown_report)
-        logger.info(f"📝 Report saved to: {report_path}")
+        # Save markdown report to file - use /tmp for production to avoid read-only issues
+        try:
+            import tempfile
+            report_dir = os.environ.get('HEALTH_REPORT_DIR', tempfile.gettempdir())
+            report_path = os.path.join(report_dir, f'health_check_{datetime.now().strftime("%Y%m%d_%H%M%S")}.md')
+            os.makedirs(os.path.dirname(report_path), exist_ok=True)
+            
+            with open(report_path, 'w', encoding='utf-8') as f:
+                f.write(markdown_report)
+            logger.info(f"📝 Report saved to: {report_path}")
+        except Exception as e:
+            logger.warning(f"Could not save report to file: {e}")
+            report_path = None
         
         return {
             'check_id': check_id,
