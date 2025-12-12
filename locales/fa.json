@@ -1268,6 +1268,8 @@
   "admin.ua.deleted.list.header": "📊 تعداد کل: {total} | صفحه {page}/{total_pages}",
   "admin.ua.approved.view.title": "✅ اتچمنت تایید شده",
   "admin.ua.view.title": "📄 جزئیات اتچمنت",
+  "admin.ua.detail.deleted_at": "🗑️ حذف شده در: {date}",
+  "admin.ua.detail.deleted_by": "👤 حذف توسط: {user}",
   "admin.ua.approved.view.name": "📎 نام",
   "admin.ua.approved.view.mode": "🎮 مود",
   "admin.ua.approved.view.weapon": "🔫 سلاح",

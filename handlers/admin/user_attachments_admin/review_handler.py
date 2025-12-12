@@ -597,13 +597,13 @@ async def show_attachment_view(update: Update, context: ContextTypes.DEFAULT_TYP
         status = attachment['status']
         
         caption = (
-            f"📄 <b>{t('admin.ua.view.title', lang)}</b>\n"
+            f"<b>{t('admin.ua.view.title', lang)}</b>\n"
             f"Status: <b>{status.upper()}</b>\n\n"
             + f"📎 <b>{t('attachment.name', lang)}:</b> {att_name}\n"
             + f"🎮 <b>{t('mode.label', lang)}:</b> {mode_name}\n"
             + f"🔫 <b>{t('weapon.label', lang)}:</b> {weapon_display}\n"
             + f"💬 <b>{t('description.label', lang)}:</b>\n{description}\n\n"
-            + f"👤 <b>{t('admin.ua.review.user_header', lang)}</b>: @{username} (`{attachment['user_id']}`)\n"
+            + f"<b>{t('admin.ua.review.user_header', lang)}</b> @{username} (`{attachment['user_id']}`)\n"
         )
         
         # Add status specific info
@@ -613,9 +613,19 @@ async def show_attachment_view(update: Update, context: ContextTypes.DEFAULT_TYP
              caption += f"❌ Rejected at: {attachment.get('rejected_at')}\n"
              caption += f"❓ Reason: {html_escape(str(attachment.get('rejection_reason') or ''))}\n"
         elif status == 'deleted':
-             caption += f"🗑️ Deleted at: {attachment.get('deleted_at')}\n"
+             del_at = attachment.get('deleted_at')
+             if isinstance(del_at, datetime):
+                 del_at_str = del_at.strftime("%Y-%m-%d %H:%M:%S")
+             else:
+                 del_at_str = str(del_at)[:19] # Truncate microseconds if string
+                 
+             caption += t('admin.ua.detail.deleted_at', lang, date=del_at_str) + "\n"
+             
              if attachment.get('deleted_by'):
-                 caption += f"By: `{attachment['deleted_by']}`\n"
+                 deleter_id = attachment['deleted_by']
+                 # Create clickable link for deleter
+                 user_link = f"<a href='tg://user?id={deleter_id}'>{deleter_id}</a>"
+                 caption += t('admin.ua.detail.deleted_by', lang, user=user_link) + "\n"
         
         # Buttons
         keyboard = []

@@ -1328,6 +1328,8 @@
   "admin.ua.deleted.list.header": "📊 Total: {total} | Page {page}/{total_pages}",
   "admin.ua.approved.view.title": "✅ Approved Attachment",
   "admin.ua.view.title": "📄 Attachment Details",
+  "admin.ua.detail.deleted_at": "🗑️ Deleted at: {date}",
+  "admin.ua.detail.deleted_by": "👤 Deleted by: {user}",
   "admin.ua.approved.view.name": "📎 Name",
   "admin.ua.approved.view.mode": "🎮 Mode",
   "admin.ua.approved.view.weapon": "🔫 Weapon",
