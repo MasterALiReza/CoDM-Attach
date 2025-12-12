@@ -134,6 +134,8 @@ def get_admin_conversation_states(admin_handlers):
             CallbackQueryHandler(admin_handlers.fix_orphaned, pattern="^fix_orphaned$"),
             CallbackQueryHandler(admin_handlers.create_backup, pattern="^create_backup$"),
             CallbackQueryHandler(admin_handlers.restore_backup_start, pattern="^restore_backup$"),
+            CallbackQueryHandler(admin_handlers.toggle_auto_backup, pattern="^toggle_auto_backup$"),
+            CallbackQueryHandler(admin_handlers.set_auto_backup_interval, pattern="^set_ab_interval_"),
             # ویرایش متن
             CallbackQueryHandler(admin_handlers.text_edit_start, pattern="^text_edit_"),
             # دسته‌بندی و سلاح‌ها
