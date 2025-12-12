@@ -386,18 +386,18 @@ async def show_attachment_review(update: Update, context: ContextTypes.DEFAULT_T
         + f"💬 <b>{t('description.label', lang)}:</b>\n{description}\n\n"
         + f"<b>{t('admin.ua.review.user_header', lang)}</b>\n"
         + f"@{username}\n"
-        + f"🆔 {t('common.user_id', lang)}: {attachment['user_id']}\n"
-        + f"📅 {t('common.submitted', lang)}: {submitted_date}\n\n"
+        + t('admin.ua.review.user_id', lang, id=attachment['user_id']) + "\n"
+        + t('admin.ua.review.submitted_at', lang, date=submitted_date) + "\n\n"
         + f"<b>{t('admin.ua.review.user_stats', lang)}</b>\n"
-        + f"📊 {t('common.total', lang)}: {stats['total_submissions']}\n"
-        + f"✅ {t('common.approved', lang)}: {stats.get('approved_submissions', stats.get('approved_count', 0))}\n"
-        + f"❌ {t('common.rejected', lang)}: {stats.get('rejected_submissions', stats.get('rejected_count', 0))}\n"
-        + f"⚠️ {t('common.strikes', lang)}: {strike_count}"
+        + t('admin.ua.review.stats.total', lang, n=stats['total_submissions']) + "\n"
+        + t('admin.ua.review.stats.approved', lang, n=stats.get('approved_submissions', stats.get('approved_count', 0))) + "\n"
+        + t('admin.ua.review.stats.rejected', lang, n=stats.get('rejected_submissions', stats.get('rejected_count', 0))) + "\n"
+        + t('admin.ua.review.stats.strikes', lang, strikes=strike_count)
     )
     
     if stats['is_banned']:
         banned_reason = html_escape(stats.get('banned_reason', ''))
-        caption += f"\n🚫 <b>{t('common.banned', lang)}:</b> {banned_reason}"
+        caption += f"\n🚫 <b>{t('admin.ua.review.banned', lang)}:</b> {banned_reason}"
     
     keyboard = [
         [
