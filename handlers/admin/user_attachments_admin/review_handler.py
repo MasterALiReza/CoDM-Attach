@@ -484,9 +484,14 @@ async def approve_attachment(update: Update, context: ContextTypes.DEFAULT_TYPE)
             except Exception:
                 user_lang = 'fa'
             mode_name = t(f"mode.{attachment['mode']}_short", user_lang)
+            
+            # استفاده از custom_weapon_name در صورت وجود، وگرنه weapon_name
+            weapon_display = attachment.get('custom_weapon_name') or attachment.get('weapon_name', t('common.unknown', user_lang))
+            att_name = attachment.get('name', attachment.get('attachment_name', t('attachment.name', user_lang)))
+            
             await context.bot.send_message(
                 chat_id=attachment['user_id'],
-                text=t('user.ua.approved', user_lang, name=attachment['attachment_name'], weapon=attachment['weapon_name'], mode=mode_name),
+                text=t('user.ua.approved', user_lang, name=att_name, weapon=weapon_display, mode=mode_name),
                 parse_mode='Markdown'
             )
         except Exception as e:
@@ -594,9 +599,14 @@ async def receive_reject_reason(update: Update, context: ContextTypes.DEFAULT_TY
             except Exception:
                 user_lang = 'fa'
             mode_name = t(f"mode.{attachment['mode']}_short", user_lang)
+            
+            # استفاده از custom_weapon_name در صورت وجود، وگرنه weapon_name
+            weapon_display = attachment.get('custom_weapon_name') or attachment.get('weapon_name', t('common.unknown', user_lang))
+            att_name = attachment.get('name', attachment.get('attachment_name', t('attachment.name', user_lang)))
+            
             await context.bot.send_message(
                 chat_id=attachment['user_id'],
-                text=t('user.ua.rejected', user_lang, name=attachment['attachment_name'], weapon=attachment['weapon_name'], mode=mode_name, reason=reason),
+                text=t('user.ua.rejected', user_lang, name=att_name, weapon=weapon_display, mode=mode_name, reason=reason),
                 parse_mode='Markdown'
             )
         except Exception as e:
