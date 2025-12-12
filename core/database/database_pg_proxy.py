@@ -1910,10 +1910,9 @@ class DatabasePostgresProxy(DatabasePostgres):
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 
-                # دریافت تعداد کل
-                cursor.execute("SELECT COUNT(*) FROM user_attachments WHERE status = %s", (status,))
+                cursor.execute("SELECT COUNT(*) as count FROM user_attachments WHERE status = %s", (status,))
                 result = cursor.fetchone()
-                total_count = result[0] if result else 0
+                total_count = result['count'] if result else 0
                 
                 # دریافت داده‌ها
                 cursor.execute("""

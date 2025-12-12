@@ -328,11 +328,13 @@ async def show_rejected_list(update: Update, context: ContextTypes.DEFAULT_TYPE)
     for att in rejected:
         mode_icon = "🎮" if att['mode'] == 'mp' else "🪂"
         username = att.get('username')
-        reason = (att.get('rejection_reason') or t('common.no_reason', lang))[:20]
+        # Escape markdown characters to prevent parsing errors
+        reason = (att.get('rejection_reason') or t('common.no_reason', lang)).replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace('`', '\\`')[:25]
+        name = att['attachment_name'].replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace('`', '\\`')[:20]
         
         keyboard.append([
             InlineKeyboardButton(
-                f"{mode_icon} {att['attachment_name'][:25]} - {reason}...",
+                f"{mode_icon} {name} - {reason}",
                 callback_data=f"ua_admin_view_rejected_{att['id']}"
             )
         ])

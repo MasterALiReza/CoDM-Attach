@@ -313,7 +313,12 @@ async def _show_attachment_list(update: Update, context: ContextTypes.DEFAULT_TY
         else:
             cb_data = f"ua_admin_view_{att['id']}"  # View only/Actions
             
-        display_text = f"{mode_icon} [{weapon_name}] {att_name[:15]} - @{username}"
+        # Escape markdown characters to prevent parsing errors
+        weapon_name_safe = str(weapon_name).replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace('`', '\\`')[:20]
+        att_name_safe = str(att_name).replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace('`', '\\`')[:15]
+        username_safe = str(username).replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace('`', '\\`')[:15]
+        
+        display_text = f"{mode_icon} [{weapon_name_safe}] {att_name_safe} - @{username_safe}"
         if status == 'deleted':
              display_text = f"🗑️ {display_text}"
         
