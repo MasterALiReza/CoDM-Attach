@@ -67,7 +67,7 @@ class FAQHandler(BaseAdminHandler):
         text += t("admin.faq.menu.avg_rating", ui_lang, rating=f"{feedback_stats.get('average_rating', 0):.1f}") + "\n"
         text += t("admin.faq.menu.feedback_count", ui_lang, count=feedback_stats.get('total', 0)) + "\n"
         lang_label = self._get_faq_lang_label(ui_lang, faq_lang)
-        text += t("admin.faq.menu.lang_current", ui_lang, lang=lang_label) + "\n"
+        text += t("admin.faq.menu.lang_current", ui_lang, current_lang=lang_label) + "\n"
         
         keyboard = [
             [InlineKeyboardButton(t("admin.faq.buttons.add", ui_lang), callback_data="adm_faq_add"),
@@ -304,7 +304,7 @@ class FAQHandler(BaseAdminHandler):
             text += t("admin.faq.menu.avg_rating", ui_lang, rating=f"{feedback_stats.get('average_rating', 0):.1f}") + "\n"
             text += t("admin.faq.menu.feedback_count", ui_lang, count=feedback_stats.get('total', 0)) + "\n"
             lang_label = self._get_faq_lang_label(ui_lang, faq_lang)
-            text += t("admin.faq.menu.lang_current", ui_lang, lang=lang_label) + "\n"
+            text += t("admin.faq.menu.lang_current", ui_lang, current_lang=lang_label) + "\n"
             
             keyboard = [
                 [InlineKeyboardButton(t("admin.faq.buttons.add", ui_lang), callback_data="adm_faq_add"),

@@ -265,6 +265,7 @@ CREATE TABLE IF NOT EXISTS faqs (
 
 CREATE INDEX IF NOT EXISTS idx_faqs_category ON faqs (category) WHERE is_active = TRUE;
 CREATE INDEX IF NOT EXISTS idx_faqs_language ON faqs (language) WHERE is_active = TRUE;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_faqs_question_lang ON faqs (question, language);
 
 -- User FAQ votes (for tracking helpful/not helpful votes)
 CREATE TABLE IF NOT EXISTS user_faq_votes (
@@ -567,6 +568,18 @@ SELECT c.id, nw.w_name
 FROM new_weapons nw
 JOIN weapon_categories c ON c.name = nw.cat_name
 ON CONFLICT (category_id, name) DO NOTHING;
+
+-- Insert default FAQs
+INSERT INTO faqs (question, answer, language) VALUES
+    ('چگونه از ربات استفاده کنم؟', 'از منوی اصلی، **مود بازی** (بتل رویال یا مولتی پلیر) را انتخاب کنید. سپس دسته سلاح و خود سلاح را انتخاب کنید تا بهترین اتچمنت‌ها نمایش داده شوند.', 'fa'),
+    ('چگونه اتچمنت خود را ثبت کنم؟', 'از منوی اصلی وارد بخش **🎮 اتچمنت کاربران** شوید و دکمه **📤 ارسال اتچمنت** را بزنید. سپس طبق راهنما، نام، عکس و کد اتچمنت خود را بفرستید.', 'fa'),
+    ('چرا اتچمنت من هنوز نمایش داده نشده؟', 'اتچمنت‌های ارسالی کاربران باید توسط **ادمین‌ها** بررسی و تایید شوند. این فرآیند ممکن است کمی زمان ببرد. پس از تایید یا رد، به شما اطلاع داده می‌شود.', 'fa'),
+    ('چگونه با پشتیبانی تماس بگیرم؟', 'از منوی اصلی دکمه **📞 تماس با ما** را انتخاب کنید. می‌توانید **تیکت** ثبت کنید یا پیشنهاد/انتقاد خود را بفرستید.', 'fa'),
+    ('How to use the bot?', 'Select your **Game Mode** (Battle Royale or Multiplayer) from the main menu. Then choose a weapon category and weapon to see the best attachments.', 'en'),
+    ('How to submit my own attachment?', 'Go to **🎮 User Attachments** from the main menu and click **📤 Submit Attachment**. Follow the instructions to send your attachment name, image, and code.', 'en'),
+    ('Why is my attachment pending?', 'All user submissions must be **approved by admins** before being published. You will be notified once your attachment is approved or rejected.', 'en'),
+    ('How to contact support?', 'Select **📞 Contact Us** from the main menu. You can submit a **Ticket** or send feedback.', 'en')
+ON CONFLICT (question, language) DO NOTHING;
 
 -- ============================================================================
 -- STEP 14: Grant Permissions & Ownership
