@@ -28,7 +28,7 @@ def get_admin_conversation_states(admin_handlers):
         EDIT_ATTACHMENT_CATEGORY, EDIT_ATTACHMENT_WEAPON, EDIT_ATTACHMENT_MODE, EDIT_ATTACHMENT_SELECT,
         EDIT_ATTACHMENT_ACTION, EDIT_ATTACHMENT_NAME, EDIT_ATTACHMENT_IMAGE, EDIT_ATTACHMENT_CODE,
         ADD_ADMIN_ID, ADD_ADMIN_DISPLAY_NAME, REMOVE_ADMIN_ID, EDIT_ADMIN_SELECT,
-        NOTIF_COMPOSE, NOTIF_CONFIRM,
+        NOTIF_COMPOSE, NOTIF_CONFIRM, SCHED_EDIT_TEXT,
         TEXT_EDIT,
         GUIDE_RENAME, GUIDE_ADD_PHOTO, GUIDE_ADD_VIDEO, GUIDE_SET_CODE,
         GUIDE_MEDIA_CONFIRM, GUIDE_FINAL_CONFIRM,
@@ -467,6 +467,28 @@ def get_admin_conversation_states(admin_handlers):
             MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
             CallbackQueryHandler(admin_handlers.export_type_selected, pattern="^export_json$|^export_csv$|^export_backup$"),
             CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$|^admin_data_management$")
+        ],
+        # ========== Notification States ==========
+        NOTIF_COMPOSE: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handlers.notify_compose_received),
+            MessageHandler(filters.PHOTO, admin_handlers.notify_compose_received),
+            CallbackQueryHandler(admin_handlers.notify_home_menu, pattern="^notify_home$"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
+        ],
+        NOTIF_CONFIRM: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            CallbackQueryHandler(admin_handlers.notify_confirm_selected, pattern="^notify_confirm$"),
+            CallbackQueryHandler(admin_handlers.notify_schedule_menu, pattern="^notify_schedule$"),
+            CallbackQueryHandler(admin_handlers.notify_home_menu, pattern="^notify_home$"),
+            CallbackQueryHandler(admin_handlers.notify_schedule_preset_selected, pattern="^notif_sched_"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
+        ],
+        SCHED_EDIT_TEXT: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handlers.schedule_edit_text_received),
+            CallbackQueryHandler(admin_handlers.schedules_menu, pattern="^admin_sched_notifications$"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
         ],
     }
 

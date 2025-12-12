@@ -581,6 +581,40 @@ class AdminHandlers(BaseAdminHandler):
             return await self.delete_role_confirm(update, context)
         elif action.startswith("remove_") or action.startswith("remove_confirm_"):
             return await self.remove_admin_confirmed(update, context)
+        # Notification Actions
+        elif action == "admin_sched_notifications":
+            return await self.schedules_menu(update, context)
+        elif action == "notify_compose":
+            return await self.notify_compose_start(update, context)
+        elif action == "notify_home":
+            return await self.notify_home_menu(update, context)
+        elif action == "notify_schedule":
+            return await self.notify_schedule_menu(update, context)
+        elif action == "notify_confirm":
+            return await self.notify_confirm_selected(update, context)
+        elif action == "notif_toggle":
+            return await self.notify_toggle(update, context)
+        elif action == "notif_auto_toggle":
+            return await self.notify_auto_toggle(update, context)
+        elif action == "notif_templates":
+            return await self.template_list_menu(update, context)
+        elif action.startswith("notif_sched_"):
+            return await self.notify_schedule_preset_selected(update, context)
+        elif action.startswith("notif_event_"):
+            return await self.notif_event_toggle(update, context)
+        elif action.startswith("tmpl_edit_"):
+            return await self.template_edit_start(update, context)
+        
+        # Scheduled Notifications Management
+        elif action.startswith("sched_toggle_"):
+            return await self.schedule_toggle(update, context)
+        elif action.startswith("sched_delete_"):
+            return await self.schedule_delete(update, context)
+        elif action.startswith("sched_edit_text_"):
+            return await self.schedule_edit_text_start(update, context)
+        elif action.startswith("sched_edit_"):
+            return await self.schedule_edit_open(update, context)
+
         elif action == "admin_exit":
             await query.edit_message_text(t("admin.exit.done", lang))
             return ConversationHandler.END
