@@ -2766,6 +2766,28 @@ class DatabasePostgresProxy(DatabasePostgres):
             log_exception(logger, e, f"clear_guide_code({key})")
             return False
     
+    def clear_guide_media(self, key: str, mode: str = "br") -> bool:
+        """پاک‌سازی تمام رسانه‌های یک راهنما"""
+        try:
+            # دریافت guide_id
+            query_guide = "SELECT id FROM guides WHERE key = %s AND mode = %s"
+            guide = self.execute_query(query_guide, (key, mode), fetch_one=True)
+            
+            if not guide:
+                return True  # اگر راهنما وجود ندارد، موفق برگردان
+            
+            guide_id = guide['id']
+            
+            # حذف تمام رسانه‌ها
+            query_delete = "DELETE FROM guide_media WHERE guide_id = %s"
+            self.execute_query(query_delete, (guide_id,))
+            
+            logger.info(f"✅ Guide media cleared: {key} ({mode})")
+            return True
+        except Exception as e:
+            log_exception(logger, e, f"clear_guide_media({key}, {mode})")
+            return False
+    
     def add_guide_photo(self, key: str, file_id: str, mode: str = "br") -> bool:
         """افزودن عکس به راهنما"""
         return self._add_guide_media(key, file_id, 'photo', mode)

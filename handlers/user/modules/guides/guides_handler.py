@@ -26,7 +26,7 @@ class GuidesHandler(BaseUserHandler):
         photos = guide.get("photos", []) or []
         videos = guide.get("videos", []) or []
         mode_name = t(f"mode.{mode}_short", lang)
-        code = (guide.get("code") or "").strip() if key == "sens" else ""
+        code = (guide.get("code") or "").strip() if key in ["sens", "hud"] else ""
         
         # چک کردن اینکه محتوا داره یا نه
         has_content = False
@@ -201,7 +201,7 @@ class GuidesHandler(BaseUserHandler):
         photos = guide.get("photos", []) or []
         videos = guide.get("videos", []) or []
         mode_name = t(f"mode.{mode}_short", lang)
-        code = (guide.get("code") or "").strip() if key == "sens" else ""
+        code = (guide.get("code") or "").strip() if key in ["sens", "hud"] else ""
         
         # چک کردن محتوا
         has_content = False
