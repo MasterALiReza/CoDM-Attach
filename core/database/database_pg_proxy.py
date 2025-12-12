@@ -4075,6 +4075,10 @@ class DatabasePostgresProxy(DatabasePostgres):
             log_exception(logger, e, "get_all_ua_settings")
             return []
     
+    def get_all_user_attachment_settings(self) -> List[Dict]:
+        """Alias for get_all_ua_settings() - used by settings_handler"""
+        return self.get_all_ua_settings()
+    
     def update_ua_setting(self, key: str, value: str, admin_id: int = None) -> bool:
         """به‌روزرسانی تنظیم user_attachment (UPSERT)"""
         try:
@@ -4093,6 +4097,10 @@ class DatabasePostgresProxy(DatabasePostgres):
         except Exception as e:
             log_exception(logger, e, f"update_ua_setting({key})")
             return False
+    
+    def set_user_attachment_setting(self, key: str, value: str, admin_id: int = None) -> bool:
+        """Alias for update_ua_setting() - used by settings_handler"""
+        return self.update_ua_setting(key, value, admin_id)
     
     def backup_database(self, backup_dir: str = 'backups') -> str:
         """ایجاد backup از دیتابیس PostgreSQL"""
