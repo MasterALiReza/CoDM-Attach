@@ -32,16 +32,25 @@ class DatabasePostgresProxy(DatabasePostgres):
     # Weapon Category Methods
     # ==========================================================================
     
-    def get_weapons_in_category(self, category: str) -> List[str]:
+    def get_weapons_in_category(self, category: str, include_inactive: bool = False) -> List[str]:
         """دریافت لیست سلاح‌های یک دسته"""
         try:
-            query = """
-                SELECT w.name 
-                FROM weapons w
-                JOIN weapon_categories c ON w.category_id = c.id
-                WHERE c.name = %s
-                ORDER BY w.name
-            """
+            if include_inactive:
+                query = """
+                    SELECT w.name 
+                    FROM weapons w
+                    JOIN weapon_categories c ON w.category_id = c.id
+                    WHERE c.name = %s
+                    ORDER BY w.name
+                """
+            else:
+                query = """
+                    SELECT w.name 
+                    FROM weapons w
+                    JOIN weapon_categories c ON w.category_id = c.id
+                    WHERE c.name = %s AND COALESCE(w.is_active, TRUE) = TRUE
+                    ORDER BY w.name
+                """
             
             results = self.execute_query(query, (category,), fetch_all=True)
             return [row['name'] for row in results]
@@ -2835,7 +2844,7 @@ class DatabasePostgresProxy(DatabasePostgres):
         try:
             # دریافت weapon_id
             query_weapon = """
-                SELECT w.id 
+                SELECT w.id, w.is_active 
                 FROM weapons w
                 JOIN weapon_categories c ON w.category_id = c.id
                 WHERE c.name = %s AND w.name = %s
@@ -2844,10 +2853,12 @@ class DatabasePostgresProxy(DatabasePostgres):
             
             if not result:
                 return {'br': {'attachment_count': 0, 'top_count': 0}, 
-                        'mp': {'attachment_count': 0, 'top_count': 0}}
+                        'mp': {'attachment_count': 0, 'top_count': 0},
+                        'is_active': True}
             
             weapon_id = result['id']
-            info = {}
+            is_active = result.get('is_active', True)
+            info = {'is_active': is_active}
             
             for mode in ['br', 'mp']:
                 query_counts = """
@@ -2869,7 +2880,8 @@ class DatabasePostgresProxy(DatabasePostgres):
         except Exception as e:
             log_exception(logger, e, f"get_weapon_info({category}, {weapon_name})")
             return {'br': {'attachment_count': 0, 'top_count': 0}, 
-                    'mp': {'attachment_count': 0, 'top_count': 0}}
+                    'mp': {'attachment_count': 0, 'top_count': 0},
+                    'is_active': True}
     
     def delete_weapon(self, category: str, weapon_name: str, mode: str = None) -> bool:
         """حذف سلاح یا اتچمنت‌های یک mode خاص"""
@@ -2893,11 +2905,12 @@ class DatabasePostgresProxy(DatabasePostgres):
                 weapon_id = result['id']
                 
                 # اگر mode مشخص نشده، کل سلاح را حذف کن
+                # اگر mode مشخص نشده، حذف کامل ممنوع است
                 if mode is None:
-                    cursor.execute("DELETE FROM weapons WHERE id = %s", (weapon_id,))
+                    # cursor.execute("DELETE FROM weapons WHERE id = %s", (weapon_id,))
                     cursor.close()
-                    logger.info(f"✅ Weapon deleted: {category}/{weapon_name}")
-                    return True
+                    logger.warning(f"⚠️ Weapon deletion attempted but blocked: {category}/{weapon_name}")
+                    return False
                 
                 # اگر mode مشخص شده، فقط اتچمنت‌های آن mode را حذف کن
                 cursor.execute("""
@@ -2911,6 +2924,30 @@ class DatabasePostgresProxy(DatabasePostgres):
                 
         except Exception as e:
             log_exception(logger, e, f"delete_weapon({category}, {weapon_name})")
+            return False
+
+    def toggle_weapon_status(self, category: str, weapon_name: str) -> bool:
+        """تغییر وضعیت فعال/غیرفعال بودن سلاح"""
+        try:
+            with self.transaction() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE weapons w
+                    SET is_active = NOT COALESCE(w.is_active, TRUE), updated_at = NOW()
+                    FROM weapon_categories c
+                    WHERE w.category_id = c.id AND c.name = %s AND w.name = %s
+                    RETURNING w.is_active
+                """, (category, weapon_name))
+                result = cursor.fetchone()
+                cursor.close()
+                
+                if result:
+                    new_status = result['is_active']
+                    logger.info(f"✅ Weapon status toggled: {category}/{weapon_name} -> {new_status}")
+                    return True
+                return False
+        except Exception as e:
+            log_exception(logger, e, f"toggle_weapon_status({category}, {weapon_name})")
             return False
     
     @cached('db.get_statistics', ttl=180)
@@ -4688,23 +4725,7 @@ class DatabasePostgresProxy(DatabasePostgres):
             logger.error(f"Error getting user attachment {attachment_id}: {e}")
             return None
 
-    def get_ua_setting(self, key: str) -> Optional[str]:
-        """دریافت تنظیمات سرویس اتچمنت"""
-        try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT setting_value FROM user_attachment_settings WHERE setting_key = %s",
-                    (key,)
-                )
-                row = cursor.fetchone()
-                
-            if row:
-                return row['setting_value']
-            return None
-        except Exception as e:
-            logger.error(f"Error getting ua setting {key}: {e}")
-            return None
+
 
     def upsert_user(self, user_id: int, username: str = None, first_name: str = None, last_name: str = None):
         """به‌روزرسانی یا ایجاد کاربر"""
@@ -4841,38 +4862,7 @@ class DatabasePostgresProxy(DatabasePostgres):
             logger.error(f"Error adding user attachment: {e}")
             return None
 
-    def get_all_user_attachment_settings(self) -> List[Dict]:
-        """دریافت تمام تنظیمات"""
-        try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT * FROM user_attachment_settings")
-                rows = cursor.fetchall()
-            return [dict(row) for row in rows]
-        except Exception as e:
-            logger.error(f"Error getting all ua settings: {e}")
-            return []
 
-    def set_user_attachment_setting(self, key: str, value: str, user_id: int = None) -> bool:
-        """تنظیم مقدار جدید"""
-        try:
-            with self.get_connection() as conn:
-                # updated_by might be NULL if user_id is None
-                conn.execute(
-                    """
-                    INSERT INTO user_attachment_settings (setting_key, setting_value, updated_at, updated_by)
-                    VALUES (%s, %s, NOW(), %s)
-                    ON CONFLICT (setting_key) DO UPDATE SET
-                        setting_value = EXCLUDED.setting_value,
-                        updated_at = NOW(),
-                        updated_by = EXCLUDED.updated_by
-                    """,
-                    (key, value, user_id)
-                )
-            return True
-        except Exception as e:
-            logger.error(f"Error setting ua setting {key}: {e}")
-            return False
 
     def add_blacklisted_word(self, word: str, category: str, severity: int, added_by: int = None) -> bool:
         """افزودن کلمه ممنوعه"""

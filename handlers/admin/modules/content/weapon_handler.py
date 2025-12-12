@@ -156,7 +156,7 @@ class WeaponHandler(BaseAdminHandler):
         mode_name = t(f"mode.{mode}_short", lang)
         
         # دریافت سلاح‌ها
-        weapons = self.db.get_weapons_in_category(category)
+        weapons = self.db.get_weapons_in_category(category, include_inactive=True)
         
         if not weapons:
             await safe_edit_message_text(
@@ -247,11 +247,16 @@ class WeaponHandler(BaseAdminHandler):
                 callback_data=f"wmact_clear_{mode}"
             )])
         
-        # دکمه حذف کامل
-        total_count = info['br']['attachment_count'] + info['mp']['attachment_count']
+        # دکمه تغییر وضعیت (فعال/غیرفعال)
+        is_active = info.get('is_active', True)
+        if is_active:
+             toggle_text = "🔴 " + t("admin.channels.buttons.toggle_deactivate", lang)
+        else:
+             toggle_text = "🟢 " + t("admin.channels.buttons.toggle_activate", lang)
+
         keyboard.append([InlineKeyboardButton(
-            t("admin.weapons.buttons.delete_weapon", lang, count=total_count), 
-            callback_data="wmact_delete"
+            toggle_text, 
+            callback_data="wmact_toggle"
         )])
         
         # دکمه بازگشت
@@ -288,22 +293,29 @@ class WeaponHandler(BaseAdminHandler):
         mode = context.user_data.get('weapon_mgmt_mode', 'br')
         mode_name = t(f"mode.{mode}_btn", lang)
         
-        if action == "delete":
-            # حذف کامل - نیاز به تایید
-            text = (
-                t("admin.weapons.path_weapon", lang, mode=mode_name, category=WEAPON_CATEGORIES.get(category), weapon=weapon) + "\n\n"
-                + t("admin.weapons.confirm.delete.title", lang) + "\n\n"
-                + t("admin.weapons.confirm.delete.prompt", lang, weapon=weapon) + "\n\n"
-                + t("admin.weapons.confirm.delete.warning", lang) + "\n"
-                + t("admin.weapons.confirm.delete.tip", lang)
-            )
-            keyboard = [
-                [InlineKeyboardButton(t("admin.weapons.buttons.confirm_delete", lang), callback_data="wmconf_delete")],
-                [InlineKeyboardButton(t("menu.buttons.cancel", lang), callback_data="nav_back")]
-            ]
-            await safe_edit_message_text(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
-            logger.info(f"Delete confirmation requested for weapon: {weapon}")
-            return WEAPON_DELETE_CONFIRM
+        if action == "toggle":
+            # تغییر وضعیت (فعال/غیرفعال)
+            success = self.db.toggle_weapon_status(category, weapon)
+            if success:
+                # Invalidate caches
+                try:
+                    from core.cache.cache_manager import get_cache
+                    cache = get_cache()
+                    cache.invalidate_pattern("get_weapons_in_category")
+                except Exception:
+                    pass
+                
+                # پیام موفقیت نشان دهید و صفحه را رفرش کنید
+                # البته چون safe_edit_message داریم، بهتر است دوباره منو را لود کنیم
+                # اما یک پیام هم می‌توانیم بفرستیم (answer callback)
+                # await query.answer(t("admin.channels.toggled", lang), show_alert=False)
+                pass
+            else:
+                await query.answer(t("error.generic", lang), show_alert=True)
+            
+            # بازسازی منو بلافاصله
+            await self.weapon_select_weapon_menu(update, context)
+            return WEAPON_ACTION_MENU
         
         elif action.startswith("clear_"):
             clear_mode = action.replace("clear_", "")  # br یا mp
@@ -355,14 +367,16 @@ class WeaponHandler(BaseAdminHandler):
         backup_file = self.db.backup_database()
         
         if query.data == "wmconf_delete":
-            # حذف کامل
-            success = self.db.delete_weapon(category, weapon, mode=None)
-            if success:
-                msg = t("admin.weapons.delete.success", lang, weapon=weapon) + "\n"
-                logger.info(f"Weapon {weapon} deleted completely")
-            else:
-                msg = t("admin.weapons.delete.error", lang, weapon=weapon) + "\n"
-                logger.error(f"Failed to delete weapon: {weapon}")
+            # حذف کامل (دیگر استفاده نمی‌شود اما برای ایمنی نگه می‌داریم و خطا می‌دهیم)
+            logger.warning(f"Legacy cleanup: Attempt to delete weapon blocked: {weapon}")
+            msg = "⛔ Deletion of weapons is no longer supported."
+            # success = self.db.delete_weapon(category, weapon, mode=None)
+            # if success:
+            #     msg = t("admin.weapons.delete.success", lang, weapon=weapon) + "\n"
+            #     logger.info(f"Weapon {weapon} deleted completely")
+            # else:
+            #     msg = t("admin.weapons.delete.error", lang, weapon=weapon) + "\n"
+            #     logger.error(f"Failed to delete weapon: {weapon}")
         
         elif query.data.startswith("wmconf_clear_"):
             clear_mode = query.data.replace("wmconf_clear_", "")
