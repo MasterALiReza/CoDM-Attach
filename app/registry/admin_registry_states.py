@@ -455,7 +455,7 @@ def get_admin_conversation_states(admin_handlers):
         # ========== Import/Export States ==========
         IMPORT_FILE: [
             MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
-            MessageHandler(filters.DOCUMENT, admin_handlers.import_file_received),
+            MessageHandler(filters.Document.ALL, admin_handlers.import_file_received),
             CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$|^admin_data_management$")
         ],
         IMPORT_MODE: [
