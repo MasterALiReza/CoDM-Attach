@@ -1782,7 +1782,7 @@ class DatabasePostgresProxy(DatabasePostgres):
                 # آپدیت آمار
                 cursor.execute("""
                     UPDATE user_submission_stats
-                    SET rejected_submissions = rejected_submissions + 1
+                    SET rejected_count = rejected_count + 1
                     WHERE user_id = %s
                 """, (user_id,))
                 
