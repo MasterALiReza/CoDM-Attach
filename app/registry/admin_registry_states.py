@@ -492,6 +492,53 @@ def get_admin_conversation_states(admin_handlers):
             CallbackQueryHandler(admin_handlers.schedules_menu, pattern="^admin_sched_notifications$"),
             CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
         ],
+        # ========== Proposed Attachments Management ==========
+        MANAGE_SUGGESTED_MENU: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            CallbackQueryHandler(admin_handlers.suggested_add_start, pattern="^msug_add$"),
+            CallbackQueryHandler(admin_handlers.suggested_remove_start, pattern="^msug_remove$"),
+            CallbackQueryHandler(admin_handlers.suggested_view_list, pattern="^msug_view$"),
+            CallbackQueryHandler(admin_handlers.suggested_analytics_menu, pattern="^analytics_suggested$"),
+            CallbackQueryHandler(admin_handlers.analytics_sugg_trending, pattern="^analytics_sugg_trending$"),
+            CallbackQueryHandler(admin_handlers.analytics_sugg_underperforming, pattern="^analytics_sugg_underperforming$"),
+            CallbackQueryHandler(admin_handlers.analytics_sugg_weapon_stats, pattern="^analytics_sugg_weapon_stats$"),
+            
+            # Analytics sub-actions (remove from underperforming)
+            CallbackQueryHandler(admin_handlers.suggested_delete_confirmed, pattern="^msugr_"),
+            
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_menu_return$|^admin_manage_suggested$")
+        ],
+        MANAGE_SUGGESTED_MODE: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            CallbackQueryHandler(admin_handlers.suggested_mode_selected, pattern="^msugm_(br|mp)$"),
+            CallbackQueryHandler(admin_handlers.suggested_remove_mode_selected, pattern="^msugm_remove_"),
+            CallbackQueryHandler(admin_handlers.manage_suggested_menu, pattern="^admin_manage_suggested$"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
+        ],
+        MANAGE_SUGGESTED_ADD_CATEGORY: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            CallbackQueryHandler(admin_handlers.suggested_category_selected, pattern="^msugc_"),
+            CallbackQueryHandler(admin_handlers.handle_navigation_back, pattern="^nav_back$"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
+        ],
+        MANAGE_SUGGESTED_ADD_WEAPON: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            CallbackQueryHandler(admin_handlers.suggested_weapon_selected, pattern="^msugw_"),
+            CallbackQueryHandler(admin_handlers.handle_navigation_back, pattern="^nav_back$"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
+        ],
+        MANAGE_SUGGESTED_ADD_ATTACHMENT: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            CallbackQueryHandler(admin_handlers.suggested_attachment_selected, pattern="^msuga_"),
+            CallbackQueryHandler(admin_handlers.handle_navigation_back, pattern="^nav_back$"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
+        ],
+        MANAGE_SUGGESTED_REMOVE_SELECT: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            CallbackQueryHandler(admin_handlers.suggested_delete_confirmed, pattern="^msugr_"),
+            CallbackQueryHandler(admin_handlers.suggested_remove_start, pattern="^msug_remove$"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
+        ],
     }
 
     
