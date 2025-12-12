@@ -386,6 +386,7 @@ async def weapon_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # callback_data format: ua_weapon_AK-47
     weapon_name = query.data.replace('ua_weapon_', '')
     category = context.user_data.get('category')
+    lang = get_user_lang(update, context, db) or 'fa'
     
     # دریافت weapon_id از دیتابیس
     weapon = db.get_weapon_by_name(category, weapon_name)
@@ -501,8 +502,9 @@ async def name_entered(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def image_uploaded(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """دریافت تصویر"""
+    lang = get_user_lang(update, context, db) or 'fa'
+    
     if not update.message.photo:
-        lang = get_user_lang(update, context, db) or 'fa'
         await update.message.reply_text(
             t('ua.error.image_required', lang)
         )
@@ -532,6 +534,7 @@ async def code_entered(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """دریافت کد اتچمنت"""
     text = update.message.text.strip()
     user_id = update.effective_user.id
+    lang = get_user_lang(update, context, db) or 'fa'
     
     # اگر skip بود
     if text == '/skip':
@@ -540,7 +543,6 @@ async def code_entered(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Validation ساده برای کد
         max_length = 100
         if len(text) > max_length:
-            lang = get_user_lang(update, context, db) or 'fa'
             await update.message.reply_text(
                 t('ua.error.code_too_long', lang, max=max_length) + "\n\n" + t('ua.try_again_or_skip', lang)
             )
@@ -563,6 +565,7 @@ async def description_entered(update: Update, context: ContextTypes.DEFAULT_TYPE
     """دریافت توضیحات"""
     text = update.message.text.strip()
     user_id = update.effective_user.id
+    lang = get_user_lang(update, context, db) or 'fa'
     
     # اگر skip بود
     if text == '/skip':
