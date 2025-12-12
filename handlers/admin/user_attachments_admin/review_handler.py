@@ -461,9 +461,10 @@ async def show_attachment_review(update: Update, context: ContextTypes.DEFAULT_T
     
     keyboard = [
         [
-            InlineKeyboardButton(t('admin.ua.buttons.approve', lang), callback_data=f"ua_admin_approve_{attachment['id']}"),
-            InlineKeyboardButton(t('admin.ua.buttons.reject', lang), callback_data=f"ua_admin_reject_{attachment['id']}")
+            InlineKeyboardButton(t('admin.ua.buttons.approve', lang, default='✅ Approve'), callback_data=f"ua_admin_approve_{attachment['id']}"),
+            InlineKeyboardButton(t('admin.ua.buttons.reject', lang, default='❌ Reject'), callback_data=f"ua_admin_reject_{attachment['id']}")
         ],
+        [InlineKeyboardButton(t('admin.ua.buttons.delete', lang, default='🗑️ Delete'), callback_data=f"ua_admin_delete_{attachment['id']}")],
         [InlineKeyboardButton(t('admin.ua.buttons.edit_weapon_name', lang), callback_data=f"ua_admin_edit_weapon_{attachment['id']}")],
         [InlineKeyboardButton(t('admin.ua.buttons.ban_user', lang), callback_data=f"ua_admin_ban_{attachment['user_id']}")],
         [InlineKeyboardButton(t('admin.ua.buttons.back_to_list', lang), callback_data="ua_admin_pending")]
@@ -621,11 +622,11 @@ async def show_attachment_view(update: Update, context: ContextTypes.DEFAULT_TYP
         
         # Restore button (for rejected/deleted)
         if status in ['rejected', 'deleted']:
-            keyboard.append([InlineKeyboardButton("♻️ " + t('admin.ua.buttons.restore', lang, default='Restore'), callback_data=f"ua_admin_restore_{attachment['id']}")])
+            keyboard.append([InlineKeyboardButton(t('admin.ua.buttons.restore', lang, default='♻️ Restore'), callback_data=f"ua_admin_restore_{attachment['id']}")])
             
         # Delete button (if not already deleted)
         if status != 'deleted':
-            keyboard.append([InlineKeyboardButton("🗑️ " + t('admin.ua.buttons.delete', lang, default='Delete'), callback_data=f"ua_admin_delete_{attachment['id']}")])
+            keyboard.append([InlineKeyboardButton(t('admin.ua.buttons.delete', lang, default='🗑️ Delete'), callback_data=f"ua_admin_delete_{attachment['id']}")])
         
         # Back button
         back_status = status if status in ['approved', 'rejected', 'deleted'] else 'pending'
