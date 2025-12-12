@@ -1246,7 +1246,7 @@ class AttachmentsDashboardHandler(BaseAdminHandler):
             _db_name = (c.get('name') or '').strip()
             title_src = self._map_category_name_to_label(_db_name)
             title = self._escape_markdown(title_src)
-            row.append(InlineKeyboardButton(title, callback_data=f"weapon_stats_cat_{c['id']}"))
+            row.append(InlineKeyboardButton(title, callback_data=f"ws_cat_{c['id']}"))
             if len(row) == 2:
                 keyboard.append(row)
                 row = []
@@ -1264,13 +1264,7 @@ class AttachmentsDashboardHandler(BaseAdminHandler):
         lang = get_user_lang(update, context, self.db) or 'fa'
         await query.answer()
         
-        # Handle both new and legacy prefixes
-        data = query.data
-        if 'weapon_stats_cat_' in data:
-            cat_id = int(data.replace('weapon_stats_cat_', ''))
-        else:
-            cat_id = int(data.replace('ws_cat_', ''))
-            
+        cat_id = int(query.data.replace('ws_cat_', ''))
         mode_key = context.user_data.get('ws_mode', 'ws_mode_all')
         mode_map = {
             'ws_mode_br': t('admin.analytics.weapon_stats.buttons.br', lang),
@@ -1630,10 +1624,8 @@ class AttachmentsDashboardHandler(BaseAdminHandler):
                     CallbackQueryHandler(self.ws_choose_mode, pattern="^ws_mode_(br|mp|all)$"),
                     CallbackQueryHandler(self.view_weapon_stats, pattern="^ws_back_to_mode$"),
                     CallbackQueryHandler(self.ws_choose_category, pattern="^ws_cat_\\d+$"),
-                    CallbackQueryHandler(self.ws_choose_category, pattern="^weapon_stats_cat_\\d+$"),
                     CallbackQueryHandler(self.ws_back_to_categories, pattern="^ws_back_to_categories$"),
                     CallbackQueryHandler(self.user_behavior_details, pattern="^user_behavior_details$"),
-                    CallbackQueryHandler(self.analytics_menu, pattern="^analytics_menu$"),
                     CallbackQueryHandler(self.admin_cancel, pattern="^admin_menu_return$")
                 ],
                 VIEW_TRENDING: [
