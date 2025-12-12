@@ -4826,7 +4826,12 @@ class DatabasePostgresProxy(DatabasePostgres):
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "SELECT * FROM weapons WHERE category = %s AND name = %s",
+                    """
+                    SELECT w.* 
+                    FROM weapons w
+                    JOIN weapon_categories c ON w.category_id = c.id
+                    WHERE c.name = %s AND w.name = %s
+                    """,
                     (category, weapon_name)
                 )
                 row = cursor.fetchone()
