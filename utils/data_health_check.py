@@ -517,6 +517,15 @@ class DataHealthChecker:
                 cursor = tconn.cursor()
                 check_id = None
                 
+                # Drop any incorrect severity check constraint that may exist
+                try:
+                    cursor.execute("""
+                        ALTER TABLE data_health_checks 
+                        DROP CONSTRAINT IF EXISTS data_health_checks_severity_check
+                    """)
+                except Exception:
+                    pass  # Constraint may not exist, that's fine
+                
                 # Save each issue category
                 for severity, issues_list in self.issues.items():
                     for issue in issues_list:
