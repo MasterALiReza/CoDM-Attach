@@ -696,15 +696,21 @@ async def final_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 increment_daily=True
             )
             
-            # پیام موفقیت
-            await safe_edit_message_text(
-                query,
-                t('ua.submit_success', lang),
+            # پیام موفقیت - حذف پیام عکس و ارسال پیام جدید
+            try:
+                await query.message.delete()
+            except Exception as e:
+                logger.warning(f"Could not delete confirmation photo message: {e}")
+            
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=t('ua.submit_success', lang),
                 parse_mode='Markdown',
                 reply_markup=InlineKeyboardMarkup([[ 
                     InlineKeyboardButton(t('menu.buttons.back', lang), callback_data="ua_menu")
                 ]])
             )
+
             
             logger.info(f"User attachment submitted: ID={attachment_id}, user={user_id}")
         else:
@@ -712,9 +718,16 @@ async def final_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     except Exception as e:
         logger.error(f"Error saving user attachment: {e}")
-        await safe_edit_message_text(
-            query,
-            t('ua.save_error', lang),
+        
+        # پیام خطا - حذف پیام عکس و ارسال پیام جدید
+        try:
+            await query.message.delete()
+        except Exception as del_error:
+            logger.warning(f"Could not delete confirmation photo message: {del_error}")
+        
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=t('ua.save_error', lang),
             parse_mode='Markdown',
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton(t('menu.buttons.back', lang), callback_data="ua_menu")
