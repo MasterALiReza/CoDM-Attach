@@ -70,7 +70,6 @@ class DataHealthReportHandler(BaseAdminHandler):
                         severity,
                         COUNT(*) as count
                     FROM data_health_checks
-                    WHERE resolved = FALSE
                     GROUP BY severity
                     """
                 )
@@ -242,7 +241,7 @@ class DataHealthReportHandler(BaseAdminHandler):
                     details,
                     check_date
                 FROM data_health_checks
-                WHERE severity = 'CRITICAL' AND resolved = FALSE
+                WHERE severity = 'CRITICAL'
                 ORDER BY check_date DESC
                 LIMIT 10
                 """)
@@ -302,7 +301,7 @@ class DataHealthReportHandler(BaseAdminHandler):
                     details,
                     check_date
                 FROM data_health_checks
-                WHERE severity = 'WARNING' AND resolved = FALSE
+                WHERE severity = 'WARNING'
                 ORDER BY check_date DESC
                 LIMIT 10
                 """)
@@ -376,7 +375,6 @@ class DataHealthReportHandler(BaseAdminHandler):
                     check_type,
                     issue_count
                 FROM data_health_checks
-                WHERE resolved = FALSE
                 ORDER BY 
                     CASE severity 
                         WHEN 'CRITICAL' THEN 1
@@ -979,4 +977,5 @@ class DataHealthReportHandler(BaseAdminHandler):
             logger.error(f"Restore error: {e}")
         
         return ADMIN_MENU
+
 
