@@ -1,11 +1,9 @@
 {
   "app.name": "CODM Attachments Bot",
-
   "lang.choose_bilingual": "🌍 Please choose your language\n🌍 لطفاً زبان خود را انتخاب کنید",
   "lang.fa": "🇮🇷 Persian",
   "lang.en": "🇬🇧 English",
   "lang.saved": "✅ Your language has been changed to {lang_name}.",
-
   "membership.title.first": "👋 <b>Welcome to {app_name}!</b>",
   "membership.title.reminder": "🔔 <b>Friendly reminder</b>",
   "membership.body": "🌟 To use the bot, please join the following channels:",
@@ -17,9 +15,7 @@
   "membership.network_error.title": "⚠️ <b>Connection issue</b>",
   "membership.network_error.body": "We are unable to verify your membership right now.\n\n🔄 Please check your internet or VPN and try again.",
   "rate_limit.wait_seconds": "⏱ Please wait {seconds} seconds...",
-
   "welcome": "🎮 **Welcome to {app_name}!**\n\nThis bot helps you browse the best CODM weapon attachments.\n\n🔹 Choose an option from the menu below:",
-
   "menu.buttons.get": "🔫 Get Attachments",
   "menu.buttons.game_settings": "⚙️ Game Settings",
   "menu.buttons.user_settings": "⚙️ Bot Settings",
@@ -38,22 +34,19 @@
   "menu.buttons.cancel": "❌ Cancel",
   "menu.buttons.delete": "🗑 Delete",
   "menu.buttons.home": "🏠 Home",
-
   "settings.user.title": "⚙️ Bot Settings",
   "settings.user.language": "🗣️ Language",
   "settings.language.current": "🔤 Current language: {current}",
   "settings.language.choose": "Please select your preferred language:",
-
   "mode.choose": "Please choose your desired mode:",
   "mode.label": "Mode",
-  "mode.br": "👊 Battle Royale",
+  "mode.br": "🪂 Battle Royale",
   "mode.mp": "🎮 Multiplayer",
   "mode.br_short": "BR",
   "mode.mp_short": "MP",
   "mode.br_btn": "🪂 BR",
   "mode.mp_btn": "🎮 MP",
   "mode.all": "All Modes",
-
   "category.choose": "Please select a weapon category:",
   "category.assault_rifle": "Assault Rifle",
   "category.smg": "SMG",
@@ -65,7 +58,6 @@
   "category.launcher": "Launcher",
   "weapon.label": "Weapon",
   "category.label": "Category",
-
   "weapon.choose": "Please select a weapon:",
   "weapon.menu.top": "⭐ Top Attachments",
   "weapon.menu.all": "📋 All Attachments",
@@ -79,7 +71,6 @@
   "suggested.select_attachment": "Please select an attachment:",
   "suggested.more_for_weapon": "📋 More for this weapon",
   "suggested.back_to_weapons": "⬅️ Back to weapons",
-
   "contact.menu.title": "📞 Contact Us",
   "contact.menu.updated": "(updated: {time})",
   "contact.menu.desc": "Choose one of the following options to get support:",
@@ -113,7 +104,6 @@
   "contact.feedback.submit_no_comment": "✅ Submit without comment",
   "contact.feedback.submit.success": "✅ Your feedback has been submitted\n🙏 Thank you!",
   "contact.feedback.submit.error": "❌ Failed to submit feedback. Please try again.",
-
   "attachment.top.title": "⭐ **Top Attachments for {weapon}**\n{mode}",
   "attachment.all.title": "📋 **All Attachments for {weapon}**\n{mode}",
   "attachment.none": "❌ No attachments found.",
@@ -130,7 +120,6 @@
   "date.label": "Date",
   "attachment.copy": "Copy Code",
   "attachment.comment": "Add Comment",
-
   "guides.title": "📖 **Guides**",
   "guides.choose_mode": "Please choose your desired mode:",
   "guides.basic": "⚙️ Basic Settings",
@@ -142,7 +131,6 @@
   "guides.choose_section": "Please select a section:",
   "guides.basic_desc": "Here you can view Basic settings for {mode} mode:",
   "guides.hud_desc": "Here you can view HUD, Basic, and Sensitivity settings for {mode} mode:",
-  
   "search.prompt": "🔍 **Search Attachments**\n\nPlease enter weapon name or attachment code:",
   "search.cancel": "Cancel Search",
   "search.results": "🔍 **Search Results for:** `{query}`\n\nResults: {count}",
@@ -151,7 +139,6 @@
   "search.attachments_header": "📎 Attachments:",
   "search.show_all_for_weapon": "📋 Show all ({weapon})",
   "search.new": "🔍 New Search",
-  
   "cms.choose_type": "📰 **Content**\n\nPlease choose the content type:",
   "cms.types.news": "📰 News",
   "cms.types.tutorial": "📘 Tutorials",
@@ -189,19 +176,14 @@
   "contact.my_tickets.title": "📋 **My Tickets**",
   "contact.my_tickets.empty": "You have not submitted any tickets yet.",
   "contact.ticket.not_found": "❌ Ticket not found",
-
   "badge.season_top": "🏆 Season Top",
   "badge.top": "⭐ Top",
-
   "help.text": "📖 **Help**\n\n🔫 Get Attachments: Category → Weapon → Mode (BR/MP) → Top or All\n\n💡 Suggested: Curated recommendations for each weapon\n\n⭐ Season Top: Season-best attachments with images and codes\n\n⚙️ Settings: HUD, Basic, Sensitivity per BR/MP\n\n🔍 Search: Type weapon name or attachment code\n\n📞 Support: Tickets, FAQ and feedback\n\n━━━━━━━━━━━━━━\n\n💡 Tip: Codes are different in BR and MP. Search them in-game.\n\nGood luck!",
-
   "season.choose_mode": "Please choose your desired mode:",
   "season.title": "⭐ **Season Top - {mode}**",
   "season.list_title": "📋 **Season Top List - {mode}**",
-
   "suggested.choose_mode": "Please choose your desired mode:",
   "suggested.title": "💡 **Suggested Attachments - {mode}**",
-
   "ua.title": "🎮 **User Attachments Section**",
   "ua.description": "In this section you can:\n• View other users' attachments\n• Submit your own attachment\n• Manage your attachments",
   "ua.browse": "👀 Browse Attachments",
@@ -268,7 +250,6 @@
   "ua.violation.name_serious": "⚠️ Serious warning - Strike {strike}/3\n\n{reason}\n\nIf repeated, your access will be revoked.\nPlease enter a proper name again:",
   "ua.violation.name_warning": "⚠️ Warning - Strike {strike}/3\n\n{reason}\n\nPlease enter a proper name:",
   "ua.violation.name_try_again": "❌ {reason}\n\nPlease try again:",
-
   "ua.my.title": "📁 My Attachments",
   "ua.my.stats_header": "📊 Overall stats:",
   "ua.my.stats.total": "• Total submissions: {n}",
@@ -292,10 +273,8 @@
   "ua.views": "Views",
   "ua.likes": "Likes",
   "ua.approved_at": "Approved",
-
   "category.none": "No categories are enabled for this mode.",
   "error.unauthorized": "❌ Unauthorized",
-
   "admin.menu.title": "👨‍💼 **Admin Panel**",
   "admin.menu.attachments": "📎 Manage Attachments",
   "admin.menu.weapons": "🔫 Manage Weapons",
@@ -303,7 +282,6 @@
   "admin.menu.analytics": "📊 Analytics & Reports",
   "admin.menu.settings": "⚙️ System Settings",
   "admin.menu.notifications": "📢 Send Notification",
-
   "error.generic": "❌ An error occurred. Please try again.",
   "success.generic": "✅ Operation completed successfully.",
   "subscription.joined": "✅ You have been subscribed to notifications.",
@@ -315,7 +293,6 @@
   "attachment.not_found": "❌ Attachment not found.",
   "pagination.page_of": "📄 Page {page} of {total}",
   "pagination.showing_range": "Showing {start}-{end} of {total}",
-  
   "notification.settings.title": "🔔 **Notification Settings**",
   "notification.status": "Status: {status}",
   "notification.enabled": "✅ Enabled",
@@ -440,7 +417,6 @@
   "admin.channels.menu.hint_membership": "💡 <i>Users must be a member of all channels</i>",
   "admin.channels.menu.empty": "⚠️ No mandatory channels defined.",
   "admin.channels.menu.empty_hint": "🆕 Tap 'Add new channel' to add the first one.",
-
   "admin.channels.add.title": "🆕 <b>Add new mandatory channel</b>",
   "admin.channels.add.prompt_id": "Please send the <b>channel ID</b>.",
   "admin.channels.add.example_id": "Example: <code>@mychannel</code> or <code>-1001234567890</code>",
@@ -454,7 +430,6 @@
   "admin.channels.errors.invalid_link": "❌ Invalid link! It must start with https://t.me/",
   "admin.channels.add.success": "✅ Channel added successfully!",
   "admin.channels.add.save_error": "❌ Failed to save channel! It might be duplicate.",
-
   "admin.channels.edit.title": "📝 <b>Edit channel</b>",
   "admin.channels.edit.prompt": "Select a channel:",
   "admin.channels.edit.choose_field": "Which field do you want to edit?",
@@ -464,17 +439,14 @@
   "admin.channels.edit.prompt_url": "🔗 Send the new channel link:",
   "admin.channels.edit.success": "✅ Channel edited successfully!",
   "admin.channels.edit.error": "❌ Failed to edit channel!",
-
   "admin.channels.delete.title": "🗑 <b>Delete channel</b>",
   "admin.channels.delete.prompt": "Select a channel:",
   "admin.channels.delete.confirm": "⚠️ Are you sure you want to delete this channel?",
   "admin.channels.delete.success": "✅ Channel deleted successfully!",
   "admin.channels.delete.error": "❌ Failed to delete channel!",
-
   "admin.channels.clear.confirm": "⚠️ <b>Warning!</b>\n\nAre you sure you want to delete <b>all mandatory channels</b>?",
   "admin.channels.clear.success": "✅ All channels deleted successfully!",
   "admin.channels.clear.error": "❌ Failed to delete channels!",
-
   "admin.channels.reorder.none": "⚠️ There are no channels to reorder!",
   "admin.channels.reorder.title": "🔀 <b>Reorder channels</b>",
   "admin.channels.reorder.instructions": "Use ⬆️ and ⬇️ to change the order.\nChannels are shown to users from top to bottom.",
@@ -484,18 +456,14 @@
   "admin.channels.reorder.moved_down": "⬇️ Channel moved down",
   "admin.channels.reorder.move_down_failed": "❌ Cannot move down",
   "admin.channels.reorder.invalid_operation": "❌ Invalid operation!",
-
   "admin.channels.history.back_to_stats": "⬅️ Back to stats",
   "admin.channels.history.error": "❌ Error displaying history!",
-
   "admin.channels.test.running": "🧪 Testing access...",
   "admin.channels.stats.error": "❌ Error displaying stats!\n\nDetails: {err}",
-
   "admin.channels.stats.buttons.funnel": "📈 Funnel analysis",
   "admin.channels.stats.buttons.period_report": "📊 Period report",
   "admin.channels.stats.buttons.export_csv": "📥 Download CSV",
   "admin.channels.stats.buttons.history": "📋 Deleted channels history",
-
   "admin.channels.funnel.error": "❌ Error displaying funnel analysis!",
   "admin.channels.period.error": "❌ Error displaying period report!",
   "admin.channels.export.creating": "Creating CSV files...",
@@ -503,7 +471,6 @@
   "admin.channels.export.sending": "✅ {count} CSV files created.\nSending...",
   "admin.channels.export.error": "❌ Error exporting files!",
   "admin.channels.export.success": "✅ All files were sent!",
-
   "admin.channels.stats.single.title": "📊 <b>Channel stats: {title}</b>",
   "admin.channels.stats.single.no_data": "⚠️ No stats recorded for this channel yet.\n\n💡 Stats start after the first user joins.",
   "admin.channels.stats.single.joins": "👥 <b>Joins:</b> {n}",
@@ -511,7 +478,6 @@
   "admin.channels.stats.single.conversion": "📈 <b>Conversion rate:</b> {rate}%",
   "admin.channels.stats.single.added_date": "📅 <b>Added:</b> {date}",
   "admin.channels.status.deleted": "Deleted",
-
   "admin.channels.test.header": "🧪 <b>Channel access test</b>",
   "admin.channels.test.channel_title": "📢 <b>{title}</b>",
   "admin.channels.test.step1.channel_found": "✅ <b>Test 1:</b> Channel found",
@@ -540,7 +506,6 @@
   "admin.channels.test.suggestions.check_id": "   • Check channel ID",
   "admin.channels.test.suggestions.bot_admin": "   • Bot must be admin in the channel",
   "admin.channels.test.suggestions.channel_active": "   • Channel must be active",
-
   "admin.cms.menu.title": "📰 **Content Management (CMS)**",
   "admin.cms.menu.desc": "Manage news/tutorial/event content.",
   "admin.cms.no_data": "❌ No content to display.",
@@ -578,7 +543,6 @@
   "admin.texts.error.invalid_key": "❌ Invalid key or language.",
   "admin.texts.saved": "✅ Text saved and applied immediately.",
   "admin.texts.saved_memory_only": "⚠️ Changes applied but failed to save into locale file.",
-
   "admin.admin_mgmt.menu.title": "👥 **Admin Management Panel**",
   "admin.admin_mgmt.stats.header": "📊 **Overall stats:**",
   "admin.admin_mgmt.stats.total": "├ Total admins: **{n}**",
@@ -653,7 +617,6 @@
   "admin.admin_mgmt.role_stats.rank.line_title": "{i}. {icon} **{name}**",
   "admin.admin_mgmt.role_stats.rank.bar": "   ├ {bar} {percent}%",
   "admin.admin_mgmt.role_stats.rank.count": "   └ {n} admin(s)",
-
   "admin.admin_mgmt.edit_role.title": "✏️ **Edit admin role**",
   "admin.admin_mgmt.edit_role.prompt": "Select an admin:",
   "admin.admin_mgmt.buttons.add_role_new": "➕ Add new role",
@@ -662,7 +625,6 @@
   "admin.admin_mgmt.buttons.delete_role_more": "❌ Remove another role",
   "admin.admin_mgmt.buttons.back_to_admins": "⬅️ Back to admins",
   "admin.admin_mgmt.buttons.add_admin_new": "➕ Add new admin",
-
   "admin.admin_mgmt.add_role.title": "➕ **Add new role**",
   "admin.admin_mgmt.add_role.prompt": "Please choose a role:",
   "admin.admin_mgmt.del_role.title": "❌ **Remove role**",
@@ -671,33 +633,27 @@
   "admin.admin_mgmt.del_role.super_last.body": "You cannot remove the last 👑 super admin role.\n\nAdd another super admin first, then remove this role.",
   "admin.admin_mgmt.remove.select_admin": "❌ Choose the admin to remove:",
   "admin.admin_mgmt.confirm.remove.yes": "✅ Yes, remove",
-
   "admin.admin_mgmt.add_admin.role_selected": "🎭 Selected role: **{role}**",
   "admin.admin_mgmt.add_admin.role_desc": "📝 {desc}",
   "admin.admin_mgmt.add_admin.enter_id.title": "🆔 Now enter the Telegram numeric ID of the new admin:",
   "admin.admin_mgmt.add_admin.enter_id.hint": "(You can use @userinfobot to get the ID)",
   "admin.admin_mgmt.add_admin.already_admin": "⚠️ This user is already an admin.\nUse 'Edit admin role' to change roles.",
   "admin.admin_mgmt.add_admin.display_name.prompt": "📝 **Admin display name**\n\nPlease enter a display name for this admin.\nThis name will be shown instead of the User ID.\n\n💡 Examples: `BR Manager`, `Alice`, `Helper Admin`\n\nTo skip this step, send `/skip`.",
-
   "admin.admin_mgmt.add_admin.success.title": "✅ New admin added successfully!",
   "admin.admin_mgmt.add_admin.success.name_line": "📝 Name: **{name}**",
   "admin.admin_mgmt.add_admin.success.id_line": "👤 User ID: `{id}`",
   "admin.admin_mgmt.add_admin.success.role_line": "🎭 Role: {role}",
-
   "admin.admin_mgmt.add_role.success.title": "✅ Role added successfully!",
   "admin.admin_mgmt.add_role.success.added_role": "➕ Added role: {role}",
   "admin.admin_mgmt.add_role.success.current_roles": "✅ Current roles: ({n})",
   "admin.admin_mgmt.labels.admin_line": "👤 Admin: **{name}** (`{id}`)",
-
   "admin.admin_mgmt.manage_roles.title": "🎭 **Manage roles**",
   "admin.admin_mgmt.manage_roles.current_roles": "🎯 **Current roles:**",
   "admin.admin_mgmt.common.what_next": "What would you like to do?",
-
   "admin.admin_mgmt.errors.no_user_id": "❌ Error: User ID not found.",
   "admin.admin_mgmt.errors.no_admin_id": "❌ Error: Admin ID not found.",
   "admin.admin_mgmt.errors.admin_not_found": "❌ Admin not found.",
   "admin.admin_mgmt.errors.no_roles_for_admin": "❌ This admin has no roles.",
-
   "admin.admin_mgmt.remove.confirm.title": "⚠️ **Confirm admin removal**",
   "admin.admin_mgmt.remove.confirm.body": "👤 Admin: **{name}**\n🆔 User ID: `{id}`\n\n❗ This action cannot be undone!\nAll roles and permissions of this admin will be removed.\n\nAre you sure?",
   "admin.admin_mgmt.remove.super_last.title": "⚠️ **Operation not allowed**",
@@ -710,7 +666,6 @@
   "admin.admin_mgmt.remove.self.body": "You cannot remove yourself from the admin list.\n\n💡 Ask another super admin to remove you.",
   "admin.admin_mgmt.remove.none_exists.title": "ℹ️ **No admins to remove**",
   "admin.admin_mgmt.remove.none_exists.body": "You are the only admin.\n\n💡 Add new admins first, then you can manage or remove them.",
-
   "admin.analytics.menu.title": "📊 **Attachments Analytics Dashboard**",
   "admin.analytics.menu.overview.header": "📈 **Overview (last {days} days):**",
   "admin.analytics.menu.overview.views": "👁 Views: {n}",
@@ -730,7 +685,6 @@
   "admin.analytics.buttons.weekly_report": "📈 Weekly report",
   "admin.analytics.buttons.search_attachment": "🔍 Search attachment",
   "admin.analytics.buttons.download_report": "📥 Download report",
-
   "admin.analytics.weapon_stats.title": "🔫 *Weapon Performance Stats*",
   "admin.analytics.weapon_stats.choose_mode": "Please choose the mode:",
   "admin.analytics.weapon_stats.buttons.br": "🪂 Battle Royale",
@@ -750,7 +704,6 @@
   "admin.analytics.buttons.back_to_mode_selection": "⬅️ Back to mode selection",
   "admin.analytics.buttons.daily_chart": "📈 Daily chart",
   "admin.analytics.buttons.download_csv": "📥 Download CSV",
-
   "admin.analytics.daily.title": "📊 *Daily Report*",
   "admin.analytics.daily.date": "📅 {date}",
   "admin.analytics.daily.stats.header": "*Today's stats:*",
@@ -763,7 +716,6 @@
   "admin.analytics.daily.no_data.body": "Users need to use the bot.",
   "admin.analytics.daily.error.title": "❌ *Error loading data*",
   "admin.analytics.daily.error.body": "Please check the logs.",
-
   "admin.analytics.loading": "Loading...",
   "admin.analytics.trending.title": "🔥 *Trending — View Growth*",
   "admin.analytics.trending.subtitle": "Items with the highest growth this week:",
@@ -774,7 +726,6 @@
   "admin.analytics.lines.code": "   🎯 Code: `{code}`",
   "admin.analytics.lines.weapon_simple": "   🔫 Weapon: {weapon}",
   "admin.analytics.lines.stats": "   📊 Stats: {views} views • {clicks} clicks",
-
   "admin.analytics.fallback.title": "📊 *Based on badges and views*",
   "admin.analytics.fallback.subtitle": "Shown when metrics data is unavailable:",
   "admin.analytics.fallback.lines.weapon": "   🔫 Weapon: {weapon}",
@@ -782,7 +733,6 @@
   "admin.analytics.fallback.no_data": "❌ No data to display.",
   "admin.analytics.trending.error.title": "🔥 *Trending attachments*",
   "admin.analytics.trending.error.body": "❌ *Error loading data*\n\nPlease check the logs.",
-
   "admin.analytics.loading_under": "Loading underperforming list...",
   "admin.analytics.under.title": "🔻 *Underperforming Items*",
   "admin.analytics.under.subtitle": "Items that need attention:",
@@ -800,7 +750,6 @@
   "admin.analytics.reco.low_eng.header": "📉 Low engagement",
   "admin.analytics.reco.low_eng.tip1": "Write clearer, inviting captions.",
   "admin.analytics.reco.low_eng.tip2": "Use emojis/practical tips to encourage clicks.",
-
   "admin.analytics.user.loading": "Loading...",
   "admin.analytics.user.title": "👥 *User Behavior Analytics*",
   "admin.analytics.user.summary.header": "📊 *Summary:*",
@@ -823,7 +772,6 @@
   "admin.analytics.user.error.title": "❌ *Error loading data*",
   "admin.analytics.user.error.body": "Please check the logs.",
   "admin.analytics.buttons.more_details": "📈 More details",
-
   "admin.analytics.user_details.title": "👥 *User Behavior Details*",
   "admin.analytics.user_details.dist.header": "📊 *User distribution:*",
   "admin.analytics.user_details.dist.cat.very_active": "Very active",
@@ -832,7 +780,6 @@
   "admin.analytics.user_details.dist.line": "{icon} {cat}: {count} ({pct}%)",
   "admin.analytics.user_details.top.header": "🔥 *Most popular attachments:*",
   "admin.analytics.user_details.weekly": "📈 *Last week:* {n} active users",
-
   "admin.analytics.weekly.title": "📈 *Weekly Report*",
   "admin.analytics.weekly.summary.header": "📊 *Summary:*",
   "admin.analytics.weekly.summary.views": "├ Views: {n}",
@@ -844,7 +791,6 @@
   "admin.analytics.weekly.no_data.body": "Users need to use the bot.",
   "admin.analytics.weekly.error.title": "❌ *Error loading data*",
   "admin.analytics.weekly.error.body": "Please check the logs.",
-
   "admin.analytics.search.title": "🎯 *Attachment Stats Search*",
   "admin.analytics.search.help.header": "🔍 *Guide:*",
   "admin.analytics.search.help.body": "• Enter attachment name\n• Or enter attachment code\n• Or search weapon name",
@@ -859,9 +805,7 @@
   "admin.analytics.search.error.body": "Please check the logs.",
   "admin.analytics.search.searching": "🔍 Searching for: *{query}*...",
   "admin.analytics.buttons.new_search": "🔍 New search",
-
   "common.text_required": "❌ Please enter text.",
-
   "admin.data_mgmt.title": "📦 Data & Backup",
   "admin.data_mgmt.body": "From here you can:\n• Import/Export data\n• Create full system backups\n• Restore from previous backups",
   "admin.data_mgmt.import": "📥 Import Data",
@@ -1446,7 +1390,6 @@
   "admin.ua.banned.ban.error": "❌ Failed to ban user",
   "user.ua.unbanned": "✅ Your ban has been lifted!\n\nYou can submit attachments again.\nPlease follow the rules.",
   "user.ua.banned": "🚫 You have been banned from submitting attachments.\n\n📋 Reason: {reason}",
-
   "admin.feedback.dashboard.title": "💬 **Feedback Dashboard**",
   "admin.feedback.dashboard.overview.header": "📈 **Overview:**",
   "admin.feedback.dashboard.overview.votes": "• Total votes: {n}",
@@ -1576,7 +1519,6 @@
   "common.no_data": "❌ No data found.",
   "common.items_other_count": "... and {n} more",
   "unit.attachment": "attachment",
-  
   "admin.health.menu.title": "📊 **Data Health Report**",
   "admin.health.menu.last_check": "📅 Last check: {date}",
   "admin.health.menu.score": "{emoji} Health score: **{score}/100**",
