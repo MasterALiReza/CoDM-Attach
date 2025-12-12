@@ -356,46 +356,48 @@ async def show_attachment_review(update: Update, context: ContextTypes.DEFAULT_T
     category_display = attachment.get('category', attachment.get('category_name', t('common.unknown', lang)))
     att_name = attachment.get('name', attachment.get('attachment_name', t('attachment.name', lang)))
     
-    # Escape characters برای MarkdownV2
-    weapon_display = escape_markdown(str(weapon_display), version=2)
-    att_name = escape_markdown(str(att_name), version=2)
-    description = escape_markdown(str(description), version=2)
-    category_display = escape_markdown(str(category_display), version=2)
-    mode_name = escape_markdown(str(mode_name), version=2)
+    # Escape برای HTML
+    from html import escape as html_escape
+    weapon_display = html_escape(str(weapon_display))
+    att_name = html_escape(str(att_name))
+    description = html_escape(str(description))
+    category_display = html_escape(str(category_display))
+    mode_name = html_escape(str(mode_name))
+    username = html_escape(str(username))
     
     # Safe date formatting for submitted_at
     sub_at = attachment.get('submitted_at')
     if isinstance(sub_at, datetime):
-        submitted_date = escape_markdown(sub_at.date().isoformat(), version=2)
+        submitted_date = sub_at.date().isoformat()
     elif isinstance(sub_at, date):
-        submitted_date = escape_markdown(sub_at.isoformat(), version=2)
+        submitted_date = sub_at.isoformat()
     else:
-        submitted_date = escape_markdown(str(sub_at)[:10], version=2)
+        submitted_date = str(sub_at)[:10]
     
-    # Format strike count with escaped decimal
-    strike_count = f"{stats['strike_count']:.1f}".replace('.', '\\.')
+    # Format strike count
+    strike_count = f"{stats['strike_count']:.1f}"
     
     caption = (
         t('admin.ua.review.title', lang) + "\n\n"
-        + f"📎 *{t('attachment.name', lang)}:* {att_name}\n"
-        + f"🎮 *{t('mode.label', lang)}:* {mode_name}\n"
-        + t('admin.ua.review.weapon_line', lang, weapon=weapon_display) + "\n"
-        + f"📂 *{t('category.label', lang)}:* {category_display}\n"
-        + t('admin.ua.review.desc_label', lang) + f"\n{description}\n\n"
-        + t('admin.ua.review.user_header', lang) + "\n"
+        + f"📎 <b>{t('attachment.name', lang)}:</b> {att_name}\n"
+        + f"🎮 <b>{t('mode.label', lang)}:</b> {mode_name}\n"
+        + f"🔫 <b>{t('weapon.label', lang)}:</b> {weapon_display}\n"
+        + f"📂 <b>{t('category.label', lang)}:</b> {category_display}\n"
+        + f"💬 <b>{t('description.label', lang)}:</b>\n{description}\n\n"
+        + f"<b>{t('admin.ua.review.user_header', lang)}</b>\n"
         + f"@{username}\n"
-        + t('admin.ua.review.user_id', lang, id=attachment['user_id']) + "\n"
-        + t('admin.ua.review.submitted_at', lang, date=submitted_date) + "\n\n"
-        + t('admin.ua.review.user_stats', lang) + "\n"
-        + t('admin.ua.review.stats.total', lang, n=stats['total_submissions']) + "\n"
-        + t('admin.ua.review.stats.approved', lang, n=stats.get('approved_submissions', stats.get('approved_count', 0))) + "\n"
-        + t('admin.ua.review.stats.rejected', lang, n=stats.get('rejected_submissions', stats.get('rejected_count', 0))) + "\n"
-        + t('admin.ua.review.stats.strikes', lang, strikes=strike_count)
+        + f"🆔 {t('common.user_id', lang)}: {attachment['user_id']}\n"
+        + f"📅 {t('common.submitted', lang)}: {submitted_date}\n\n"
+        + f"<b>{t('admin.ua.review.user_stats', lang)}</b>\n"
+        + f"📊 {t('common.total', lang)}: {stats['total_submissions']}\n"
+        + f"✅ {t('common.approved', lang)}: {stats.get('approved_submissions', stats.get('approved_count', 0))}\n"
+        + f"❌ {t('common.rejected', lang)}: {stats.get('rejected_submissions', stats.get('rejected_count', 0))}\n"
+        + f"⚠️ {t('common.strikes', lang)}: {strike_count}"
     )
     
     if stats['is_banned']:
-        banned_reason = escape_markdown(stats.get('banned_reason', ''), version=2)
-        caption += f"\n🚫 *{t('admin.ua.review.banned', lang)}:* {banned_reason}"
+        banned_reason = html_escape(stats.get('banned_reason', ''))
+        caption += f"\n🚫 <b>{t('common.banned', lang)}:</b> {banned_reason}"
     
     keyboard = [
         [
@@ -411,7 +413,7 @@ async def show_attachment_review(update: Update, context: ContextTypes.DEFAULT_T
     await query.message.reply_photo(
         photo=attachment['image_file_id'],
         caption=caption,
-        parse_mode='MarkdownV2',
+        parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
     
