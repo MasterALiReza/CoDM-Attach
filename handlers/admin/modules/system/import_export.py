@@ -63,7 +63,8 @@ class ImportExportHandler(BaseAdminHandler):
         await update.message.reply_text("⏳ در حال پردازش فایل...")
         
         file = await update.message.document.get_file()
-        temp_file = f"temp_import_{datetime.now().strftime('%Y%m%d_%H%M%S')}{os.path.splitext(file_name)[1]}"
+        import tempfile
+        temp_file = os.path.join(tempfile.gettempdir(), f"import_{datetime.now().strftime('%Y%m%d_%H%M%S')}{os.path.splitext(file_name)[1]}")
         await file.download_to_drive(temp_file)
         
         try:

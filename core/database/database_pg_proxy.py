@@ -2802,14 +2802,7 @@ class DatabasePostgresProxy(DatabasePostgres):
             with self.transaction() as conn:
                 cursor = conn.cursor()
                 
-                # ابتدا مطمئن شو که guide وجود دارد
-                cursor.execute("""
-                    INSERT INTO guides (key, mode, name)
-                    VALUES (%s, %s, %s)
-                    ON CONFLICT (key, mode) DO NOTHING
-                """, (key, mode, key.title()))
-                
-                # دریافت guide_id
+                # ابتدا چک کن آیا guide وجود دارد
                 cursor.execute("""
                     SELECT id FROM guides WHERE key = %s AND mode = %s
                 """, (key, mode))
@@ -2817,28 +2810,35 @@ class DatabasePostgresProxy(DatabasePostgres):
                 
                 if result:
                     guide_id = result['id']
-                    
-                    # دریافت آخرین order_index
+                else:
+                    # ایجاد guide جدید
                     cursor.execute("""
-                        SELECT COALESCE(MAX(order_index), -1) as max_order
-                        FROM guide_media
-                        WHERE guide_id = %s
-                    """, (guide_id,))
+                        INSERT INTO guides (key, mode, name)
+                        VALUES (%s, %s, %s)
+                        RETURNING id
+                    """, (key, mode, key.title()))
                     result = cursor.fetchone()
-                    max_order = result['max_order']
-                    
-                    # اضافه کردن media
-                    cursor.execute("""
-                        INSERT INTO guide_media (guide_id, media_type, file_id, order_index)
-                        VALUES (%s, %s, %s, %s)
-                    """, (guide_id, media_type, file_id, max_order + 1))
-                    
-                    cursor.close()
-                    logger.info(f"✅ Guide media added: {key} ({media_type})")
-                    return True
-                    
+                    guide_id = result['id']
+                
+                # دریافت آخرین order_index
+                cursor.execute("""
+                    SELECT COALESCE(MAX(order_index), -1) as max_order
+                    FROM guide_media
+                    WHERE guide_id = %s
+                """, (guide_id,))
+                result = cursor.fetchone()
+                max_order = result['max_order']
+                
+                # اضافه کردن media
+                cursor.execute("""
+                    INSERT INTO guide_media (guide_id, media_type, file_id, order_index)
+                    VALUES (%s, %s, %s, %s)
+                """, (guide_id, media_type, file_id, max_order + 1))
+                
                 cursor.close()
-                return False
+                logger.info(f"✅ Guide media added: {key} ({media_type})")
+                return True
+                
         except Exception as e:
             log_exception(logger, e, f"_add_guide_media({key}, {media_type})")
             return False
