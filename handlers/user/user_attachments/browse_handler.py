@@ -400,9 +400,12 @@ async def view_attachment_detail(update: Update, context: ContextTypes.DEFAULT_T
     mode_name = t(f"mode.{attachment['mode']}_short", lang)
     
     # Escape for MarkdownV2
-    att_name = escape_markdown(str(attachment['attachment_name']), version=2)
+    att_name = escape_markdown(str(attachment.get('attachment_name', attachment.get('name', 'Unknown'))), version=2)
     mode_name_esc = escape_markdown(str(mode_name), version=2)
-    weapon_name = escape_markdown(str(attachment.get('custom_weapon_name', attachment['weapon_name'])), version=2)
+    
+    # Safe access for weapon name
+    weapon_raw = attachment.get('custom_weapon_name') or attachment.get('weapon_name') or t('common.unknown', lang)
+    weapon_name = escape_markdown(str(weapon_raw), version=2)
     
     # دریافت نام دسته با ترجمه
     category_key = attachment.get('category', attachment.get('category_name', ''))
