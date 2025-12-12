@@ -40,7 +40,7 @@ class ImportExportHandler(BaseAdminHandler):
         await safe_edit_message_text(
             query,
             "📥 **Import دیتا**\n\n"
-            "فایل JSON یا ZIP حاوی دیتای جدید را ارسال کنید:",
+            "فایل JSON، ZIP یا SQL حاوی دیتای جدید را ارسال کنید:",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='Markdown'
         )
@@ -56,8 +56,8 @@ class ImportExportHandler(BaseAdminHandler):
         
         # بررسی نوع فایل
         file_name = update.message.document.file_name
-        if not file_name.endswith(('.json', '.zip')):
-            await update.message.reply_text("❌ فقط فایل‌های JSON یا ZIP پشتیبانی می‌شوند.")
+        if not file_name.endswith(('.json', '.zip', '.sql')):
+            await update.message.reply_text("❌ فقط فایل‌های JSON، ZIP یا SQL پشتیبانی می‌شوند.")
             return await self.admin_menu_return(update, context)
         
         await update.message.reply_text("⏳ در حال پردازش فایل...")
@@ -70,8 +70,44 @@ class ImportExportHandler(BaseAdminHandler):
             from managers.backup_manager import BackupManager
             backup_mgr = BackupManager(self.db)
             
+            # اگر فایل SQL است، restore PostgreSQL کن
+            if temp_file.endswith('.sql'):
+                import subprocess
+                import os as os_env
+                
+                pg_host = os_env.environ.get('POSTGRES_HOST', 'localhost')
+                pg_user = os_env.environ.get('POSTGRES_USER', '')
+                pg_db = os_env.environ.get('POSTGRES_DB', '')
+                pg_pass = os_env.environ.get('POSTGRES_PASSWORD', '')
+                
+                env = os_env.environ.copy()
+                env['PGPASSWORD'] = pg_pass
+                
+                result = subprocess.run(
+                    ['psql', '-h', pg_host, '-U', pg_user, '-d', pg_db, '-f', temp_file],
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    timeout=300
+                )
+                
+                # حذف فایل موقت
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
+                
+                if result.returncode == 0 or 'ERROR' not in result.stderr:
+                    await update.message.reply_text(
+                        "✅ بازیابی دیتابیس PostgreSQL با موفقیت انجام شد.\n"
+                        "🔄 لطفاً ربات را ری‌استارت کنید:\n"
+                        "`sudo systemctl restart codm-bot`",
+                        parse_mode='Markdown'
+                    )
+                else:
+                    await update.message.reply_text(f"❌ خطا در بازیابی: {result.stderr[:200]}")
+                return await self.admin_menu_return(update, context)
+            
             # اگر فایل ZIP است، restore کن
-            if temp_file.endswith('.zip'):
+            elif temp_file.endswith('.zip'):
                 result = backup_mgr.restore_from_backup(temp_file)
                 if result:
                     await update.message.reply_text(
