@@ -3076,18 +3076,18 @@ class DatabasePostgresProxy(DatabasePostgres):
                    category: str = "general", updated_by: int = None) -> bool:
         """تنظیم/به‌روزرسانی تنظیمات"""
         try:
+            # Note: bot_settings table only has: key, value, description, updated_at
+            # category and updated_by are kept in signature for backward compatibility but not used
             query = """
                 INSERT INTO bot_settings 
-                (key, value, description, category, updated_at, updated_by)
-                VALUES (%s, %s, %s, %s, NOW(), %s)
+                (key, value, description, updated_at)
+                VALUES (%s, %s, %s, NOW())
                 ON CONFLICT (key) DO UPDATE SET
                     value = EXCLUDED.value,
                     description = EXCLUDED.description,
-                    category = EXCLUDED.category,
-                    updated_at = NOW(),
-                    updated_by = EXCLUDED.updated_by
+                    updated_at = NOW()
             """
-            self.execute_query(query, (key, value, description, category, updated_by))
+            self.execute_query(query, (key, value, description))
             logger.info(f"✅ Setting {key} updated to: {value}")
             return True
         except Exception as e:
