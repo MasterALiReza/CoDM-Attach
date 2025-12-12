@@ -29,6 +29,7 @@ UA_ADMIN_EDIT_WEAPON = 2
 PENDING_PER_PAGE = 10
 
 
+
 def check_ua_admin_permission(user_id: int) -> bool:
     """بررسی دسترسی مدیریت اتچمنت کاربران"""
     # Permission-based: allow SuperAdmin or MANAGE_USER_ATTACHMENTS
@@ -39,6 +40,38 @@ def check_ua_admin_permission(user_id: int) -> bool:
     except Exception:
         # Fallback برای سازگاری قدیمی
         return db.is_admin(user_id)
+
+
+async def toggle_ua_system_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """تغییر وضعیت سیستم اتچمنت از منوی اصلی"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = update.effective_user.id
+    lang = get_user_lang(update, context, db) or 'fa'
+    
+    if not check_ua_admin_permission(user_id):
+        await query.answer(t('error.unauthorized', lang), show_alert=True)
+        return
+
+    # تغییر وضعیت
+    current_value = db.get_ua_setting('system_enabled')
+    # اگر تنظیم وجود نداشت، پیش‌فرض 1 (فعال) است، پس جدید می‌شود 0
+    if current_value is None:
+        current_value = '1'
+        
+    new_value = '0' if current_value in ('1', 'true', 'True') else '1'
+    
+    success = db.set_user_attachment_setting('system_enabled', new_value, user_id)
+    
+    if success:
+        status_text = t('common.enabled_word', lang) if new_value == '1' else t('common.disabled_word', lang)
+        await query.answer(f"{t('admin.ua.settings.system', lang)}: {status_text}", show_alert=True)
+        # بازگشت به منوی اصلی برای به‌روزرسانی وضعیت
+        await show_ua_admin_menu(update, context)
+    else:
+        await query.answer(t('error.generic', lang), show_alert=True)
+
 
 
 async def show_ua_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -145,8 +178,19 @@ async def show_ua_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
     total_count = pending_count + approved_count + rejected_count
     
     lang = get_user_lang(update, context, db) or 'fa'
+    
+    # دریافت وضعیت سیستم
+    system_enabled = db.get_ua_setting('system_enabled')
+    if system_enabled is None:
+        system_enabled = '1'
+    is_enabled = system_enabled in ('1', 'true', 'True')
+    
+    status_icon = "✅" if is_enabled else "🔴"
+    status_text = t('common.enabled_word', lang) if is_enabled else t('common.disabled_word', lang)
+    
     message = (
-        t('admin.ua.menu.title', lang) + "\n\n"
+        t('admin.ua.menu.title', lang) + "\n"
+        + f"{t('admin.ua.settings.system', lang)}: {status_icon} {status_text}\n\n"
         + t('admin.ua.menu.stats.header', lang) + "\n"
         + t('admin.ua.menu.stats.total', lang, n=total_count) + "\n"
         + t('admin.ua.menu.stats.pending', lang, n=pending_count) + "\n"
@@ -158,6 +202,16 @@ async def show_ua_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
     
     keyboard = []
+    
+    # دکمه تغییر وضعیت سیستم (اولین دکمه برای دسترسی سریع)
+    toggle_btn_text = t('admin.ua.settings.buttons.disable_system', lang) if is_enabled else t('admin.ua.settings.buttons.enable_system', lang)
+    # اگر کلیدهای ترجمه بالا وجود نداشتند از این استفاده کن:
+    if 'admin.ua.settings.buttons' not in toggle_btn_text: 
+         pass # Assume translated
+    else:
+         toggle_btn_text = "🔴 Disable System" if is_enabled else "✅ Enable System"
+
+    keyboard.append([InlineKeyboardButton(toggle_btn_text, callback_data="ua_admin_toggle_system")])
     
     # دکمه‌های بررسی
     if pending_count > 0:
@@ -999,6 +1053,7 @@ edit_weapon_conv_handler = ConversationHandler(
 # Export handlers
 ua_admin_handlers = [
     CallbackQueryHandler(show_ua_admin_menu, pattern="^ua_admin_menu$"),
+    CallbackQueryHandler(toggle_ua_system_main, pattern="^ua_admin_toggle_system$"),
     CallbackQueryHandler(show_pending_list, pattern="^ua_admin_pending"),
     CallbackQueryHandler(show_approved_list, pattern="^ua_admin_approved"),
     CallbackQueryHandler(show_rejected_list, pattern="^ua_admin_rejected"),
