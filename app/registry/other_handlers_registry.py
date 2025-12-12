@@ -54,7 +54,8 @@ class OtherHandlersRegistry(BaseHandlerRegistry):
     def _register_user_attachments(self):
         """ثبت user attachments handlers - main.py خط 738-754"""
         # ConversationHandler برای ارسال اتچمنت
-        self.application.add_handler(user_attachment_conv_handler, group=0)
+        # ⚠️ CRITICAL: در group=-1 برای اولویت بالاتر از dynamic guide handler (group=0)
+        self.application.add_handler(user_attachment_conv_handler, group=-1)
         
         # Browse handlers
         for handler in browse_handlers:
