@@ -52,12 +52,12 @@ class DataHealthReportHandler(BaseAdminHandler):
                 cursor.execute(
                     """
                     SELECT 
-                        metric_date,
+                        created_at,
                         total_weapons,
                         total_attachments,
                         health_score
                     FROM data_quality_metrics
-                    ORDER BY metric_date DESC
+                    ORDER BY created_at DESC
                     LIMIT 1
                     """
                 )
@@ -86,7 +86,7 @@ class DataHealthReportHandler(BaseAdminHandler):
 
         # Build message
         if latest_metrics:
-            metric_date = latest_metrics.get('metric_date')
+            created_at = latest_metrics.get('created_at')
             total_weapons = latest_metrics.get('total_weapons')
             total_attachments = latest_metrics.get('total_attachments')
             health_score = latest_metrics.get('health_score')
@@ -96,7 +96,7 @@ class DataHealthReportHandler(BaseAdminHandler):
             except (TypeError, ValueError):
                 health_score = 0.0
             score_emoji = "\U0001F7E2" if health_score >= 80 else "\U0001F7E1" if health_score >= 60 else "\U0001F534"
-            message += t('admin.health.menu.last_check', lang, date=str(metric_date)) + "\n"
+            message += t('admin.health.menu.last_check', lang, date=str(created_at)) + "\n"
             message += t('admin.health.menu.score', lang, emoji=score_emoji, score=f"{health_score:.1f}") + "\n\n"
             message += t('admin.health.menu.stats.header', lang) + "\n"
             message += t('admin.health.menu.stats.weapons', lang, n=total_weapons) + "\n"
@@ -357,14 +357,14 @@ class DataHealthReportHandler(BaseAdminHandler):
                 # Get latest metrics
                 cursor.execute("""
                 SELECT 
-                    metric_date,
+                    created_at,
                     health_score,
                     total_weapons,
                     total_attachments,
                     attachments_with_images,
                     attachments_without_images
                 FROM data_quality_metrics
-                ORDER BY metric_date DESC
+                ORDER BY created_at DESC
                 LIMIT 1
                 """)
                 latest = cursor.fetchone()
@@ -394,7 +394,7 @@ class DataHealthReportHandler(BaseAdminHandler):
         message = t('admin.health.full.title', lang) + "\n\n"
         
         if latest:
-            date = latest.get('metric_date')
+            date = latest.get('created_at')
             score = latest.get('health_score')
             weapons = latest.get('total_weapons')
             attachments = latest.get('total_attachments')
@@ -504,14 +504,14 @@ class DataHealthReportHandler(BaseAdminHandler):
                 cursor = conn.cursor()
                 cursor.execute("""
                 SELECT 
-                    metric_date,
+                    created_at,
                     health_score,
                     total_weapons,
                     total_attachments,
                     attachments_with_images,
                     attachments_without_images
                 FROM data_quality_metrics
-                ORDER BY metric_date DESC
+                ORDER BY created_at DESC
                 LIMIT 10
             """)
                 
@@ -523,7 +523,7 @@ class DataHealthReportHandler(BaseAdminHandler):
         
         if history:
             for record in history:
-                date = record.get('metric_date')
+                date = record.get('created_at')
                 score = record.get('health_score')
                 weapons = record.get('total_weapons')
                 attachments = record.get('total_attachments')
