@@ -597,6 +597,7 @@
   "roles.names.full_content_admin": "Content Admin",
   "roles.names.ua_moderator": "User Attachments Admin",
   "roles.names.support_admin": "Support Admin",
+  "roles.names.moderator": "Moderator",
   "roles.desc.super_admin": "Full access to all sections",
   "roles.desc.br_admin": "Manage attachments, suggestions and BR settings",
   "roles.desc.mp_admin": "Manage attachments, suggestions and MP settings",
