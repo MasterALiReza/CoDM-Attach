@@ -104,7 +104,7 @@ class LanguageHandler(BaseUserHandler):
                 
                 # Check UA system
                 ua_system_enabled = self.db.get_ua_setting('system_enabled') or '1'
-                if ua_system_enabled == '1':
+                if ua_system_enabled in ('1', 'true', 'True'):
                     keyboard.append([kb("menu.buttons.ua", new_lang), kb("menu.buttons.suggested", new_lang)])
                 else:
                     keyboard.append([kb("menu.buttons.suggested", new_lang)])

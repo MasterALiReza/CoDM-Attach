@@ -426,7 +426,7 @@ async def _send_main_menu(query, context: ContextTypes.DEFAULT_TYPE, db, user_id
     try:
         ua_system_enabled = db.get_ua_setting('system_enabled') or '1'
         logger.info(f"[DEBUG channel_manager] UA system_enabled: {repr(ua_system_enabled)}")
-        if ua_system_enabled == '1':
+        if ua_system_enabled in ('1', 'true', 'True'):
             keyboard.append([kb("menu.buttons.ua", lang), kb("menu.buttons.suggested", lang)])
         else:
             keyboard.append([kb("menu.buttons.suggested", lang)])

@@ -121,7 +121,7 @@ class MainMenuHandler(BaseUserHandler):
         # ردیف 2: بسته به فعال بودن سیستم اتچمنت کاربران
         ua_system_enabled = self.db.get_ua_setting('system_enabled') or '1'
         logger.info(f"[DEBUG] UA system_enabled value: {repr(ua_system_enabled)} (type: {type(ua_system_enabled).__name__})")
-        if ua_system_enabled == '1':
+        if ua_system_enabled in ('1', 'true', 'True'):
             keyboard.append([kb("menu.buttons.ua", lang), kb("menu.buttons.suggested", lang)])
         else:
             keyboard.append([kb("menu.buttons.suggested", lang)])
@@ -191,7 +191,7 @@ class MainMenuHandler(BaseUserHandler):
         
         # چک کردن فعال بودن سیستم اتچمنت کاربران
         ua_system_enabled = self.db.get_ua_setting('system_enabled') or '1'
-        if ua_system_enabled == '1':
+        if ua_system_enabled in ('1', 'true', 'True'):
             keyboard.append([InlineKeyboardButton(kb("menu.buttons.ua", lang), callback_data="ua_menu")])
         
         keyboard.extend([
