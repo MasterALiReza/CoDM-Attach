@@ -140,6 +140,7 @@ class CategoryHandler(BaseAdminHandler):
         keyboard = []
         
         # ساخت دکمه‌های 2 ستونی برای toggle
+        # Category names are displayed in English from WEAPON_CATEGORIES
         toggle_buttons = []
         for key, name in WEAPON_CATEGORIES.items():
             enabled = get_category_setting(key, mode).get('enabled', True)
@@ -157,6 +158,7 @@ class CategoryHandler(BaseAdminHandler):
         keyboard.append([InlineKeyboardButton(t("admin.categories.separator.clear", lang), callback_data="noop")])
         
         # دکمه‌های پاک‌سازی
+        # Category names displayed in English from WEAPON_CATEGORIES
         clear_buttons = []
         for key, name in WEAPON_CATEGORIES.items():
             clear_buttons.append(InlineKeyboardButton(f"🗑 {WEAPON_CATEGORIES.get(key, key)}", callback_data=f"adm_cat_clear_{key}"))
@@ -227,7 +229,8 @@ class CategoryHandler(BaseAdminHandler):
         mode = context.user_data.get('cat_mgmt_mode', 'mp')
         lang = get_user_lang(update, context, self.db) or 'fa'
         mode_name = GAME_MODES.get(mode, mode)
-        category_name = t(f"category.{category}", lang)
+        # Force English for category name
+        category_name = t(f"category.{category}", 'en')
         
         # ذخیره برای مرحله confirm
         context.user_data['cat_clear_category'] = category
@@ -272,7 +275,8 @@ class CategoryHandler(BaseAdminHandler):
         mode = context.user_data.get('cat_mgmt_mode', 'mp')
         lang = get_user_lang(update, context, self.db) or 'fa'
         mode_name = GAME_MODES.get(mode, mode)
-        category_name = t(f"category.{category}", lang)
+        # Force English for category name
+        category_name = t(f"category.{category}", 'en')
         
         if not category:
             await query.edit_message_text(t("common.not_found", lang))

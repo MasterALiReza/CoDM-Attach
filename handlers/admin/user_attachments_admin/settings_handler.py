@@ -361,7 +361,8 @@ async def show_categories_settings(update: Update, context: ContextTypes.DEFAULT
     for cat_name in all_categories:
         is_enabled = cat_name in enabled_categories
         status_icon = "✅" if is_enabled else "❌"
-        display_name = f"{emoji_map.get(cat_name, '')} {t('category.' + cat_name, lang)}"
+        # Force English for category names
+        display_name = f"{emoji_map.get(cat_name, '')} {t('category.' + cat_name, 'en')}"
         
         row.append(
             InlineKeyboardButton(
@@ -420,7 +421,8 @@ async def toggle_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
         success = db.set_user_attachment_setting('enabled_categories', new_value, user_id)
         
         if success:
-            await query.answer(t('admin.ua.categories.toggled', lang, category=t('category.' + category_name, lang), status=status_word), show_alert=True)
+            # Force English for category name in toggle message
+            await query.answer(t('admin.ua.categories.toggled', lang, category=t('category.' + category_name, 'en'), status=status_word), show_alert=True)
         else:
             await query.answer(t('error.generic', lang), show_alert=True)
             return
