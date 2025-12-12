@@ -378,7 +378,6 @@
   "admin.backup.created": "✅ Backup created successfully: {filename}",
   "admin.backup.file_caption": "📦 Database Backup File",
   "admin.backup.error": "❌ Failed to create backup.",
-  "admin.health.fix.buttons.restore_backup": "🔄 Restore Backup",
   "admin.buttons.data_health": "🩺 Data Health",
   "admin.buttons.feedback_dashboard": "💬 Feedback Dashboard",
   "admin.buttons.exit": "❌ Exit",
