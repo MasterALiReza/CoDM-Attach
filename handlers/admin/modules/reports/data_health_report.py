@@ -239,10 +239,10 @@ class DataHealthReportHandler(BaseAdminHandler):
                     check_type,
                     issue_count,
                     details,
-                    check_date
+                    created_at
                 FROM data_health_checks
                 WHERE severity = 'CRITICAL'
-                ORDER BY check_date DESC
+                ORDER BY created_at DESC
                 LIMIT 10
                 """)
                 
@@ -258,7 +258,7 @@ class DataHealthReportHandler(BaseAdminHandler):
                 check_type = issue.get('check_type')
                 count = issue.get('issue_count')
                 details_json = issue.get('details')
-                check_date = issue.get('check_date')
+                created_at = issue.get('created_at')
                 details = json.loads(details_json) if isinstance(details_json, str) and details_json else {}
                 
                 if check_type == 'missing_images':
@@ -268,7 +268,7 @@ class DataHealthReportHandler(BaseAdminHandler):
                 elif check_type == 'orphaned_attachments':
                     message += f"🧩 **{t('admin.health.type.orphaned_attachments', lang)}:** {count} {t('admin.health.issue.unit', lang)}\n"
                 
-                date_str = check_date.strftime('%Y-%m-%d') if hasattr(check_date, 'strftime') else (str(check_date)[:10] if check_date else '-')
+                date_str = created_at.strftime('%Y-%m-%d') if hasattr(created_at, 'strftime') else (str(created_at)[:10] if created_at else '-')
                 message += t('admin.health.date', lang, date=date_str) + "\n\n"
         else:
             message += t('admin.health.critical.none', lang)
@@ -299,10 +299,10 @@ class DataHealthReportHandler(BaseAdminHandler):
                     check_type,
                     issue_count,
                     details,
-                    check_date
+                    created_at
                 FROM data_health_checks
                 WHERE severity = 'WARNING'
-                ORDER BY check_date DESC
+                ORDER BY created_at DESC
                 LIMIT 10
                 """)
                 
@@ -319,14 +319,14 @@ class DataHealthReportHandler(BaseAdminHandler):
                 check_type = warning.get('check_type')
                 count = warning.get('issue_count')
                 details_json = warning.get('details')
-                check_date = warning.get('check_date')
+                created_at = warning.get('created_at')
                 
                 if check_type == 'empty_weapons':
                     message += f"🗡️ **{t('admin.health.type.empty_weapons', lang)}:** {count} {t('admin.health.issue.unit', lang)}\n"
                 elif check_type == 'sparse_weapons':
                     message += f"🟨 **{t('admin.health.type.sparse_weapons', lang)}:** {count} {t('admin.health.issue.unit', lang)}\n"
                 
-                date_str = check_date.strftime('%Y-%m-%d') if hasattr(check_date, 'strftime') else (str(check_date)[:10] if check_date else '-')
+                date_str = created_at.strftime('%Y-%m-%d') if hasattr(created_at, 'strftime') else (str(created_at)[:10] if created_at else '-')
                 message += t('admin.health.date', lang, date=date_str) + "\n\n"
         else:
             message += t('admin.health.warnings.none', lang)
@@ -381,7 +381,7 @@ class DataHealthReportHandler(BaseAdminHandler):
                         WHEN 'WARNING' THEN 2
                         ELSE 3
                     END,
-                    check_date DESC
+                    created_at DESC
                 """)
                 issues = cursor.fetchall()
         except Exception as e:
