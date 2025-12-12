@@ -50,6 +50,93 @@ class DatabasePostgresProxy(DatabasePostgres):
             log_exception(logger, e, f"get_weapons_in_category({category})")
             return []
 
+    def get_weapon_attachments(self, category: str, weapon_name: str, mode: str) -> Dict[str, List[Dict]]:
+        """دریافت اتچمنت‌های یک سلاح برای یک mode خاص"""
+        try:
+            query = """
+                SELECT a.id, a.code, a.name, a.image_file_id, a.is_top, a.is_season_top, 
+                       a.views_count, a.shares_count
+                FROM attachments a
+                JOIN weapons w ON a.weapon_id = w.id
+                JOIN weapon_categories c ON w.category_id = c.id
+                WHERE c.name = %s AND w.name = %s AND a.mode = %s
+                ORDER BY a.is_top DESC, a.order_index ASC, a.name ASC
+            """
+            
+            results = self.execute_query(query, (category, weapon_name, mode), fetch_all=True)
+            
+            all_attachments = []
+            top_attachments = []
+            
+            for row in results:
+                att = dict(row)
+                all_attachments.append(att)
+                if att.get('is_top'):
+                    top_attachments.append(att)
+            
+            return {
+                'top_attachments': top_attachments,
+                'all_attachments': all_attachments
+            }
+            
+        except Exception as e:
+            log_exception(logger, e, f"get_weapon_attachments({category}, {weapon_name}, {mode})")
+            return {'top_attachments': [], 'all_attachments': []}
+
+    def search(self, query_text: str) -> List[Dict]:
+        """جستجوی اتچمنت‌ها بر اساس نام، کد یا نام سلاح"""
+        try:
+            # جستجو در نام اتچمنت، کد اتچمنت، یا نام سلاح
+            # از ILIKE برای case-insensitive matching استفاده می‌کنیم
+            sql = """
+                SELECT a.id, a.code, a.name, a.image_file_id as image, a.mode,
+                       w.name as weapon, c.name as category
+                FROM attachments a
+                JOIN weapons w ON a.weapon_id = w.id
+                JOIN weapon_categories c ON w.category_id = c.id
+                WHERE a.name ILIKE %s 
+                   OR a.code ILIKE %s 
+                   OR w.name ILIKE %s
+                ORDER BY w.name, a.mode, a.name
+                LIMIT 50
+            """
+            
+            search_term = f"%{query_text}%"
+            params = (search_term, search_term, search_term)
+            
+            results = self.execute_query(sql, params, fetch_all=True)
+            
+            # تبدیل به فرمت مورد انتظار Handler
+            # Handler انتظار لیستی از دیکشنری‌ها را دارد که کلیدهای
+            # category, weapon, mode, attachment (dict) را داشته باشند
+            # اما طبق خط 209-210 handelr، اگر لیست باشد آیتم‌ها را append می‌کند
+            # و در خط 213: item['attachment'] دسترسی پیدا می‌کند.
+            # پس ساختار هر آیتم باید این باشد:
+            # {
+            #    'category': ..., 'weapon': ..., 'mode': ...,
+            #    'attachment': {'name': ..., 'code': ..., 'image': ...}
+            # }
+            
+            formatted_results = []
+            for row in results:
+                formatted_results.append({
+                    'category': row['category'],
+                    'weapon': row['weapon'],
+                    'mode': row['mode'],
+                    'attachment': {
+                        'id': row['id'],
+                        'name': row['name'],
+                        'code': row['code'],
+                        'image': row['image']
+                    }
+                })
+            
+            return formatted_results
+            
+        except Exception as e:
+            log_exception(logger, e, f"search({query_text})")
+            return []
+
     def set_top_attachments(self, category: str, weapon_name: str,
                             attachment_codes: List[str], mode: str = "br") -> bool:
         """

@@ -458,6 +458,8 @@ install_bot() {
     rsync -av --exclude='.git' --exclude='__pycache__' --exclude='*.pyc' \
         --exclude='.env' --exclude='venv' --exclude='.agent_venv' \
         --exclude='logs/*' --exclude='backups/*' \
+        --exclude='.vscode' --exclude='.idea' \
+        --exclude='deploy.bat' --exclude='setup_windows.ps1' --exclude='*.spec' \
         "$SCRIPT_DIR/" "$INSTALL_DIR/" >/dev/null
     
     chown -R $BOT_USER:$BOT_USER "$INSTALL_DIR"
@@ -701,6 +703,8 @@ update_bot() {
     rsync -av --exclude='.git' --exclude='__pycache__' --exclude='*.pyc' \
         --exclude='.env' --exclude='venv' --exclude='.agent_venv' \
         --exclude='logs/*' --exclude='backups/*' \
+        --exclude='.vscode' --exclude='.idea' \
+        --exclude='deploy.bat' --exclude='setup_windows.ps1' --exclude='*.spec' \
         "$SCRIPT_DIR/" "$INSTALL_DIR/" >/dev/null
     
     chown -R $BOT_USER:$BOT_USER "$INSTALL_DIR"
