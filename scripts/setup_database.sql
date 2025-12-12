@@ -152,6 +152,7 @@ CREATE TABLE IF NOT EXISTS user_attachments (
     rejection_reason TEXT,
     like_count INTEGER NOT NULL DEFAULT 0,
     report_count INTEGER NOT NULL DEFAULT 0,
+    view_count INTEGER NOT NULL DEFAULT 0,
     views_count INTEGER DEFAULT 0
 );
 
@@ -169,6 +170,7 @@ CREATE TABLE IF NOT EXISTS user_submission_stats (
     daily_reset_date DATE,
     violation_count INTEGER NOT NULL DEFAULT 0,
     strike_count REAL NOT NULL DEFAULT 0,
+    is_banned BOOLEAN NOT NULL DEFAULT FALSE,
     last_submission_at TIMESTAMP,
     updated_at TIMESTAMP
 );
