@@ -425,6 +425,33 @@ def get_admin_conversation_states(admin_handlers):
             CallbackQueryHandler(admin_handlers.admin_direct_contact_menu, pattern="^adm_direct_contact$"),
             CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
         ],
+        # ========== Guide States ==========
+        GUIDE_RENAME: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handlers.guide_rename_received),
+            CallbackQueryHandler(admin_handlers.guide_section_menu, pattern="^gsel_"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
+        ],
+        GUIDE_ADD_PHOTO: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            MessageHandler(filters.PHOTO, admin_handlers.guide_photo_received),
+            CallbackQueryHandler(admin_handlers.guide_op_router, pattern="^gop_confirm_media_"),
+            CallbackQueryHandler(admin_handlers.guide_section_menu, pattern="^gsel_"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
+        ],
+        GUIDE_ADD_VIDEO: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            MessageHandler(filters.VIDEO, admin_handlers.guide_video_received),
+            CallbackQueryHandler(admin_handlers.guide_op_router, pattern="^gop_confirm_media_"),
+            CallbackQueryHandler(admin_handlers.guide_section_menu, pattern="^gsel_"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
+        ],
+        GUIDE_SET_CODE: [
+            MessageHandler(filters.Regex('^👨‍💼 پنل ادمین$'), admin_handlers.admin_menu_return),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handlers.guide_code_received),
+            CallbackQueryHandler(admin_handlers.guide_section_menu, pattern="^gsel_"),
+            CallbackQueryHandler(admin_handlers.admin_menu_return, pattern="^admin_cancel$")
+        ],
     }
 
     
