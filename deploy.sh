@@ -719,19 +719,41 @@ update_bot() {
     # Run database migrations
     if [ -d "$INSTALL_DIR/scripts/migrations" ]; then
         print_step "Running database migrations..."
-        source "$INSTALL_DIR/.env"
         
-        for migration in "$INSTALL_DIR/scripts/migrations"/*.sql; do
-            if [ -f "$migration" ]; then
-                migration_name=$(basename "$migration")
-                print_info "Running: $migration_name"
-                PGPASSWORD="$POSTGRES_PASSWORD" psql -h "${POSTGRES_HOST:-localhost}" \
-                    -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-                    -f "$migration" 2>/dev/null || true
+        if [ -f "$INSTALL_DIR/.env" ]; then
+            source "$INSTALL_DIR/.env"
+            
+            # Sort migrations to ensure order
+            # Using simple expansion might not be sorted in all shells, using ls | sort is safer here
+            migrations=$(ls "$INSTALL_DIR/scripts/migrations"/*.sql 2>/dev/null | sort)
+            
+            if [ -n "$migrations" ]; then
+                for migration in $migrations; do
+                    if [ -f "$migration" ]; then
+                        migration_name=$(basename "$migration")
+                        print_info "Applying: $migration_name"
+                        
+                        # Run migration and capture output
+                        if PGPASSWORD="$POSTGRES_PASSWORD" psql -h "${POSTGRES_HOST:-localhost}" \
+                            -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+                            -v ON_ERROR_STOP=1 \
+                            -f "$migration" > /tmp/db_migration.log 2>&1; then
+                            print_success "Done: $migration_name"
+                        else
+                            # Ignore errors if it's just "relation already exists" etc, but warn user
+                            # We don't stop the update process for migration errors to avoid breaking the flow
+                            print_warning "Warning in $migration_name (Details in /tmp/db_migration.log)"
+                            # cat /tmp/db_migration.log # Uncomment to debug
+                        fi
+                    fi
+                done
+                print_success "Database migrations completed"
+            else
+                print_info "No migration files found"
             fi
-        done
-        
-        print_success "Migrations completed"
+        else
+             print_warning "Configuration file not found, skipping migrations"
+        fi
     fi
 
     
