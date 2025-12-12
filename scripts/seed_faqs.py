@@ -85,13 +85,13 @@ async def seed_faqs():
     
     # Check schema first using direct query to ensure exception is raised if column missing
     try:
-        # Probe for 'lang' column
-        db.execute_query("SELECT lang FROM faqs LIMIT 1;")
+        # Probe for 'language' column
+        db.execute_query("SELECT language FROM faqs LIMIT 1;")
     except Exception as e:
         error_str = str(e)
-        # Check for specific postgres error or just assume if it failed it might be the column if text matches
-        if "UndefinedColumn" in error_str or "column \"lang\"" in error_str or "does not exist" in error_str:
-            print("(!) Schema mismatch detected (missing 'lang' column).")
+        # Check for specific postgres error
+        if "UndefinedColumn" in error_str or "column" in error_str:
+            print("(!) Schema mismatch detected (missing 'language' column).")
             print("(!) Attempting to DROP and RECREATE 'faqs' table...")
             try:
                 # DROP
@@ -99,48 +99,6 @@ async def seed_faqs():
                 print("Table dropped.")
                 
                 # CREATE
-                create_sql = """
-                CREATE TABLE IF NOT EXISTS faqs (
-                    id SERIAL PRIMARY KEY,
-                    question TEXT NOT NULL,
-                    answer TEXT NOT NULL,
-                    category VARCHAR(50) DEFAULT 'general',
-                    views INTEGER DEFAULT 0,
-                    helpful_count INTEGER NOT NULL DEFAULT 0,
-                    not_helpful_count INTEGER NOT NULL DEFAULT 0,
-                    is_active BOOLEAN DEFAULT TRUE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP,
-                    lang VARCHAR(8) NOT NULL DEFAULT 'fa',
-                    UNIQUE(question, lang)
-                );
-                
-                CREATE INDEX IF NOT EXISTS idx_faqs_category ON faqs (category) WHERE is_active = TRUE;
-                CREATE INDEX IF NOT EXISTS idx_faqs_language ON faqs (language); -- Note: language or lang? SQL uses 'lang', but idx uses 'language'?
-                -- Wait, setup_database.sql had 'language' column in one version and 'lang' in another?
-                -- Let's check setup_database.sql content again.
-                -- It had "language TEXT DEFAULT 'fa'".
-                -- BUT DatabasePostgresProxy add_faq uses 'lang'.
-                -- This is a mismatch in the project code!!
-                -- database_pg_proxy.py line 3568: INSERT INTO faqs (..., lang)
-                -- setup_database.sql line 257: language TEXT DEFAULT 'fa'
-                -- This is the root cause!!! The python code expects 'lang' but table has 'language' (or vice versa).
-                -- Proxy uses 'lang'. Setup uses 'language'.
-                
-                -- We must align them. Since we are recreating the table, we should use 'lang' to match the proxy code.
-                -- OR change proxy code to use 'language'. Changing proxy is better if 'language' is more descriptive, 
-                -- but changing table is easier here since we are dropping it.
-                -- Let's stick to 'lang' as per proxy expectation OR rename column in CREATE.
-                
-                -- Actually, let's look at the failed query in log: "column "lang" of relation "faqs" does not exist".
-                -- It means table has 'language' (from setup_database.sql) but code uses 'lang'.
-                -- I will Create table with 'lang' column to match Python code.
-                """
-                
-                # We need to be careful. The setup_database.sql uses 'language'. 
-                # If I change it to 'lang' here, it fixes the python code, but future setups might use 'language'.
-                # Use 'lang' to match the code I saw in add_faq.
-                
                 create_sql_fixed = """
                 CREATE TABLE IF NOT EXISTS faqs (
                     id SERIAL PRIMARY KEY,
@@ -153,15 +111,15 @@ async def seed_faqs():
                     is_active BOOLEAN DEFAULT TRUE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP,
-                    lang VARCHAR(8) NOT NULL DEFAULT 'fa',
-                    UNIQUE(question, lang)
+                    language VARCHAR(8) NOT NULL DEFAULT 'fa',
+                    UNIQUE(question, language)
                 );
                 CREATE INDEX IF NOT EXISTS idx_faqs_category ON faqs (category) WHERE is_active = TRUE;
-                CREATE UNIQUE INDEX IF NOT EXISTS idx_faqs_question_lang ON faqs (question, lang);
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_faqs_question_language ON faqs (question, language);
                 """
                 
                 db.execute_query(create_sql_fixed)
-                print("Table recreated with correct schema (using 'lang' column).")
+                print("Table recreated with correct schema (using 'language' column).")
             except Exception as e2:
                 print(f"(X) Failed to reset table: {e2}")
                 return
@@ -172,11 +130,11 @@ async def seed_faqs():
     print("Starting seeding process...")
     for faq in defaults:
         try:
-            # We use direct query to ensure we use 'lang'
+            # We use direct query to ensure we use 'language'
             query = """
-                INSERT INTO faqs (question, answer, category, lang)
+                INSERT INTO faqs (question, answer, category, language)
                 VALUES (%s, %s, %s, %s)
-                ON CONFLICT (question, lang) DO NOTHING
+                ON CONFLICT (question, language) DO NOTHING
             """
             result = db.execute_query(query, (faq['question'], faq['answer'], faq['category'], faq['lang']))
             print(f"(+) Added: {faq['question'][:20]}... ({faq['lang']})")

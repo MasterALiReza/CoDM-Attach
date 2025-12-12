@@ -119,7 +119,7 @@ class MainMenuHandler(BaseUserHandler):
         ]
         
         # ردیف 2: بسته به فعال بودن سیستم اتچمنت کاربران
-        ua_system_enabled = self.db.get_ua_setting('system_enabled')
+        ua_system_enabled = self.db.get_ua_setting('system_enabled') or '1'
         if ua_system_enabled == '1':
             keyboard.append([kb("menu.buttons.ua", lang), kb("menu.buttons.suggested", lang)])
         else:
@@ -189,7 +189,7 @@ class MainMenuHandler(BaseUserHandler):
                 keyboard.append([InlineKeyboardButton(kb("menu.buttons.cms", lang), callback_data="cms")])
         
         # چک کردن فعال بودن سیستم اتچمنت کاربران
-        ua_system_enabled = self.db.get_ua_setting('system_enabled')
+        ua_system_enabled = self.db.get_ua_setting('system_enabled') or '1'
         if ua_system_enabled == '1':
             keyboard.append([InlineKeyboardButton(kb("menu.buttons.ua", lang), callback_data="ua_menu")])
         

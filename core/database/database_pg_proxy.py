@@ -3593,48 +3593,77 @@ class DatabasePostgresProxy(DatabasePostgres):
     # Phase 4: FAQ System - Day 2
     # ==========================================================================
     
-    def _ensure_faqs_lang_column(self):
-        """Ensure 'lang' column exists on faqs table (default 'fa')."""
+    def _ensure_faqs_language_column(self):
+        """Ensure 'language' column exists on faqs table (rename 'lang' if exists)."""
         try:
-            self.execute_query(
-                "ALTER TABLE faqs ADD COLUMN IF NOT EXISTS lang VARCHAR(8) NOT NULL DEFAULT 'fa';"
-            )
+            # Check if 'language' column exists
+            check_sql = "SELECT column_name FROM information_schema.columns WHERE table_name='faqs' AND column_name='language'"
+            # execute_query might fail if we are in a transaction block? No, it should be fine.
+            # But wait, execute_query uses self.conn or pool.
+            # We should probably just try to select 1 row and catch error, or check information_schema
+            
+            with self.transaction() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT 1 FROM information_schema.columns WHERE table_name='faqs' AND column_name='language'")
+                if cursor.fetchone():
+                    return # Exists
+                
+                cursor.execute("SELECT 1 FROM information_schema.columns WHERE table_name='faqs' AND column_name='lang'")
+                if cursor.fetchone():
+                    # Rename 'lang' to 'language'
+                    cursor.execute("ALTER TABLE faqs RENAME COLUMN lang TO language")
+                    logger.info("Renamed 'lang' column to 'language' in faqs table")
+                else:
+                    # Add 'language' column
+                    cursor.execute("ALTER TABLE faqs ADD COLUMN IF NOT EXISTS language VARCHAR(8) NOT NULL DEFAULT 'fa'")
+                    logger.info("Added 'language' column to faqs table")
+                    
         except Exception as e:
-            log_exception(logger, e, "ensure_faqs_lang_column")
+            # Just log, don't crash, let the query fail if it must
+            log_exception(logger, e, "ensure_faqs_language_column")
     
     def get_faqs(self, category: Optional[str] = None, lang: Optional[str] = None) -> List[Dict]:
         """دریافت FAQ ها (فیلتر بر اساس زبان در صورت ارائه)"""
-        try:
-            # self._ensure_faqs_lang_column() # Perfmance/Permission issue avoidance
-            logger.info(f"DEBUG: get_faqs called with category={category}, lang={lang}")
-            if category and lang:
-                query = "SELECT * FROM faqs WHERE category = %s AND lang = %s ORDER BY views DESC"
-                results = self.execute_query(query, (category, lang), fetch_all=True)
-            elif category:
-                query = "SELECT * FROM faqs WHERE category = %s ORDER BY views DESC"
-                results = self.execute_query(query, (category,), fetch_all=True)
-            elif lang:
-                query = "SELECT * FROM faqs WHERE lang = %s ORDER BY views DESC"
-                results = self.execute_query(query, (lang,), fetch_all=True)
-            else:
-                query = "SELECT * FROM faqs ORDER BY views DESC"
-                results = self.execute_query(query, fetch_all=True)
-            
-            logger.info(f"DEBUG: get_faqs returning {len(results)} items")
-            return [dict(row) for row in results]
-        except Exception as e:
-            log_exception(logger, e, "get_faqs")
-            return []
+        # Retry logic to handle missing column (first run or migration)
+        for attempt in range(2):
+            try:
+                # logger.info(f"DEBUG: get_faqs called with category={category}, lang={lang}")
+                if category and lang:
+                    query = "SELECT * FROM faqs WHERE category = %s AND language = %s ORDER BY views DESC"
+                    results = self.execute_query(query, (category, lang), fetch_all=True)
+                elif category:
+                    query = "SELECT * FROM faqs WHERE category = %s ORDER BY views DESC"
+                    results = self.execute_query(query, (category,), fetch_all=True)
+                elif lang:
+                    query = "SELECT * FROM faqs WHERE language = %s ORDER BY views DESC"
+                    results = self.execute_query(query, (lang,), fetch_all=True)
+                else:
+                    query = "SELECT * FROM faqs ORDER BY views DESC"
+                    results = self.execute_query(query, fetch_all=True)
+                
+                # logger.info(f"DEBUG: get_faqs returning {len(results)} items")
+                return [dict(row) for row in results]
+                
+            except Exception as e:
+                error_str = str(e).lower()
+                if attempt == 0 and ("column" in error_str and ("lang" in error_str or "language" in error_str)):
+                    logger.warning(f"Schema mismatch in get_faqs, attempting fix... Error: {e}")
+                    self._ensure_faqs_language_column()
+                    continue # Retry once
+                
+                log_exception(logger, e, "get_faqs")
+                return []
+        return []
     
     def search_faqs(self, query: str, lang: Optional[str] = None) -> List[Dict]:
         """جستجو در FAQ ها (با فیلتر زبان اختیاری)"""
         try:
-            self._ensure_faqs_lang_column()
+            # self._ensure_faqs_language_column() # rely on get_faqs or manual fix usually, but keeping it generic
             search_term = f"%{query}%"
             if lang:
                 query_sql = """
                     SELECT * FROM faqs 
-                    WHERE (question ILIKE %s OR answer ILIKE %s) AND lang = %s
+                    WHERE (question ILIKE %s OR answer ILIKE %s) AND language = %s
                     ORDER BY views DESC
                 """
                 params = (search_term, search_term, lang)
@@ -3648,15 +3677,22 @@ class DatabasePostgresProxy(DatabasePostgres):
             results = self.execute_query(query_sql, params, fetch_all=True)
             return [dict(row) for row in results]
         except Exception as e:
+            # Try to fix if it's column error
+            if "column" in str(e).lower():
+                 try:
+                     self._ensure_faqs_language_column()
+                     return self.search_faqs(query, lang) # Recursive retry once (dangerous if loop, but bounded by stack)
+                 except:
+                     pass
             log_exception(logger, e, f"search_faqs({query})")
             return []
     
     def add_faq(self, question: str, answer: str, category: str = "general", lang: str = 'fa') -> bool:
         """افزودن FAQ جدید (با زبان)"""
         try:
-            self._ensure_faqs_lang_column()
+            self._ensure_faqs_language_column()
             query = """
-                INSERT INTO faqs (question, answer, category, lang)
+                INSERT INTO faqs (question, answer, category, language)
                 VALUES (%s, %s, %s, %s)
             """
             self.execute_query(query, (question, answer, category, lang))
@@ -4548,6 +4584,326 @@ class DatabasePostgresProxy(DatabasePostgres):
             f"All methods should be implemented in PostgreSQL. "
             f"If you see this error, the method '{name}' needs to be added to DatabasePostgresProxy."
         )
+
+    #
+    #     User Attachments Implementation
+    #
+    
+    def get_user_submission_stats(self, user_id: int) -> Dict:
+        """دریافت آمار ارسال‌های کاربر"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Ensure user exists in stats
+                cursor.execute(
+                    """
+                    INSERT INTO user_submission_stats (user_id, updated_at)
+                    VALUES (%s, NOW())
+                    ON CONFLICT (user_id) DO NOTHING
+                    """,
+                    (user_id,)
+                )
+                
+                # Get stats
+                cursor.execute(
+                    """
+                    SELECT * FROM user_submission_stats WHERE user_id = %s
+                    """,
+                    (user_id,)
+                )
+                row = cursor.fetchone()
+                
+                # Get rejected count (as fallback or addition)
+                cursor.execute(
+                    "SELECT COUNT(*) as cnt FROM user_attachments WHERE user_id = %s AND status = 'rejected'",
+                    (user_id,)
+                )
+                rejected_count = cursor.fetchone()['cnt']
+                
+            if not row:
+                return {
+                    'total_submissions': 0,
+                    'approved_submissions': 0,
+                    'rejected_submissions': 0,
+                    'daily_submissions': 0,
+                    'strike_count': 0,
+                    'violation_count': 0,
+                    'is_banned': False,
+                    'banned_reason': None,
+                    'banned_at': None
+                }
+            
+            stats = dict(row)
+            stats['approved_submissions'] = stats.get('approved_count', 0)
+            stats['rejected_submissions'] = rejected_count
+            
+            # Check daily reset
+            today = date.today()
+            last_reset = stats.get('daily_reset_date')
+            if last_reset != today:
+                with self.get_connection() as conn:
+                    conn.execute(
+                        "UPDATE user_submission_stats SET daily_submissions = 0, daily_reset_date = %s WHERE user_id = %s",
+                        (today, user_id)
+                    )
+                stats['daily_submissions'] = 0
+            
+            return stats
+            
+        except Exception as e:
+            logger.error(f"Error getting user submission stats: {e}")
+            return {
+                'total_submissions': 0,
+                'approved_submissions': 0,
+                'rejected_submissions': 0,
+                'daily_submissions': 0,
+                'strike_count': 0,
+                'violation_count': 0,
+                'is_banned': False,
+                'banned_reason': None,
+                'banned_at': None
+            }
+
+    def get_user_attachment(self, attachment_id: int) -> Optional[Dict]:
+        """دریافت یک اتچمنت خاص"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT ua.*, u.username, u.first_name
+                    FROM user_attachments ua
+                    LEFT JOIN users u ON ua.user_id = u.user_id
+                    WHERE ua.id = %s
+                    """,
+                    (attachment_id,)
+                )
+                row = cursor.fetchone()
+                
+            if row:
+                return dict(row)
+            return None
+        except Exception as e:
+            logger.error(f"Error getting user attachment {attachment_id}: {e}")
+            return None
+
+    def get_ua_setting(self, key: str) -> Optional[str]:
+        """دریافت تنظیمات سرویس اتچمنت"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT setting_value FROM user_attachment_settings WHERE setting_key = %s",
+                    (key,)
+                )
+                row = cursor.fetchone()
+                
+            if row:
+                return row['setting_value']
+            return None
+        except Exception as e:
+            logger.error(f"Error getting ua setting {key}: {e}")
+            return None
+
+    def upsert_user(self, user_id: int, username: str = None, first_name: str = None, last_name: str = None):
+        """به‌روزرسانی یا ایجاد کاربر"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO users (user_id, username, first_name, last_name, last_seen)
+                    VALUES (%s, %s, %s, %s, NOW())
+                    ON CONFLICT (user_id) DO UPDATE SET
+                        username = EXCLUDED.username,
+                        first_name = EXCLUDED.first_name,
+                        last_name = EXCLUDED.last_name,
+                        last_seen = NOW()
+                    """,
+                    (user_id, username, first_name, last_name)
+                )
+        except Exception as e:
+            logger.error(f"Error upserting user {user_id}: {e}")
+
+    def update_submission_stats(self, user_id: int, add_violation: int = 0, add_strike: float = 0.0, 
+                              increment_total: bool = False, increment_daily: bool = False):
+        """به‌روزرسانی آمار کاربر"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                today = date.today()
+                
+                # Check if daily reset needed first
+                cursor.execute("SELECT daily_reset_date FROM user_submission_stats WHERE user_id = %s", (user_id,))
+                row = cursor.fetchone()
+                reset_needed = False
+                if not row or row['daily_reset_date'] != today:
+                    reset_needed = True
+                
+                # Prepare update
+                set_clauses = ["updated_at = NOW()"]
+                query_params = []
+                
+                if add_violation > 0:
+                    set_clauses.append("violation_count = violation_count + %s")
+                    query_params.append(add_violation)
+                
+                if add_strike > 0:
+                    set_clauses.append("strike_count = strike_count + %s")
+                    query_params.append(add_strike)
+                    
+                if increment_total:
+                    set_clauses.append("total_submissions = total_submissions + 1")
+                    set_clauses.append("last_submission_at = NOW()")
+                    
+                if increment_daily:
+                    if reset_needed:
+                        set_clauses.append("daily_submissions = 1")
+                    else:
+                        set_clauses.append("daily_submissions = daily_submissions + 1")
+                    set_clauses.append("daily_reset_date = %s")
+                    query_params.append(today)
+                elif reset_needed:
+                    set_clauses.append("daily_submissions = 0")
+                    set_clauses.append("daily_reset_date = %s")
+                    query_params.append(today)
+                
+                query_params.append(user_id)
+                
+                cursor.execute(
+                    f"UPDATE user_submission_stats SET {', '.join(set_clauses)} WHERE user_id = %s",
+                    tuple(query_params)
+                )
+
+        except Exception as e:
+            logger.error(f"Error updating submission stats for {user_id}: {e}")
+
+    def ban_user_from_submissions(self, user_id: int, reason: str):
+        """محروم کردن کاربر"""
+        try:
+            with self.get_connection() as conn:
+                conn.execute(
+                    """
+                    INSERT INTO user_submission_stats (user_id, is_banned, banned_reason, banned_at)
+                    VALUES (%s, true, %s, NOW())
+                    ON CONFLICT (user_id) DO UPDATE SET
+                        is_banned = true,
+                        banned_reason = EXCLUDED.banned_reason,
+                        banned_at = NOW()
+                    """,
+                    (user_id, reason)
+                )
+        except Exception as e:
+            logger.error(f"Error banning user {user_id}: {e}")
+
+    def get_weapon_by_name(self, category: str, weapon_name: str) -> Optional[Dict]:
+        """پیدا کردن سلاح با نام"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT * FROM weapons WHERE category = %s AND name = %s",
+                    (category, weapon_name)
+                )
+                row = cursor.fetchone()
+            if row:
+                return dict(row)
+            return None
+        except Exception as e:
+            logger.error(f"Error getting weapon {weapon_name}: {e}")
+            return None
+
+    def add_user_attachment(self, user_id: int, weapon_id: int, mode: str, category: str,
+                          custom_weapon_name: str, attachment_name: str, image_file_id: str,
+                          description: str = None) -> Optional[int]:
+        """ثبت اتچمنت جدید"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO user_attachments 
+                    (user_id, weapon_id, mode, category, custom_weapon_name, attachment_name, 
+                     image_file_id, description, status, submitted_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'pending', NOW())
+                    RETURNING id
+                    """,
+                    (user_id, weapon_id, mode, category, custom_weapon_name, attachment_name, 
+                     image_file_id, description)
+                )
+                row = cursor.fetchone()
+                if row:
+                    return row['id']
+            return None
+        except Exception as e:
+            logger.error(f"Error adding user attachment: {e}")
+            return None
+
+    def get_all_user_attachment_settings(self) -> List[Dict]:
+        """دریافت تمام تنظیمات"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM user_attachment_settings")
+                rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        except Exception as e:
+            logger.error(f"Error getting all ua settings: {e}")
+            return []
+
+    def set_user_attachment_setting(self, key: str, value: str, user_id: int = None) -> bool:
+        """تنظیم مقدار جدید"""
+        try:
+            with self.get_connection() as conn:
+                # updated_by might be NULL if user_id is None
+                conn.execute(
+                    """
+                    INSERT INTO user_attachment_settings (setting_key, setting_value, updated_at, updated_by)
+                    VALUES (%s, %s, NOW(), %s)
+                    ON CONFLICT (setting_key) DO UPDATE SET
+                        setting_value = EXCLUDED.setting_value,
+                        updated_at = NOW(),
+                        updated_by = EXCLUDED.updated_by
+                    """,
+                    (key, value, user_id)
+                )
+            return True
+        except Exception as e:
+            logger.error(f"Error setting ua setting {key}: {e}")
+            return False
+
+    def add_blacklisted_word(self, word: str, category: str, severity: int, added_by: int = None) -> bool:
+        """افزودن کلمه ممنوعه"""
+        try:
+            with self.get_connection() as conn:
+                # Check for table columns. Schema: word, category, severity, created_at. NO added_by.
+                conn.execute(
+                    """
+                    INSERT INTO blacklisted_words (word, category, severity, created_at)
+                    VALUES (%s, %s, %s, NOW())
+                    """,
+                    (word, category, severity)
+                )
+            return True
+        except UniqueViolation:
+            return False
+        except Exception as e:
+            logger.error(f"Error adding blacklisted word {word}: {e}")
+            return False
+
+    def remove_blacklisted_word(self, word_id: Any) -> bool:
+        """حذف کلمه ممنوعه"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                # Assuming word_id is the word string
+                cursor.execute("DELETE FROM blacklisted_words WHERE word = %s", (str(word_id),))
+                return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"Error removing blacklisted word {word_id}: {e}")
+            return False
 
 
 # ==============================================================================

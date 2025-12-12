@@ -45,7 +45,7 @@ async def show_user_attachments_menu(update: Update, context: ContextTypes.DEFAU
     lang = get_user_lang(update, context, db) or 'fa'
     
     # بررسی فعال بودن سیستم
-    system_enabled = db.get_ua_setting('system_enabled')
+    system_enabled = db.get_ua_setting('system_enabled') or '1'
     if system_enabled != '1':
         text = t("error.generic", lang)
         if query:
