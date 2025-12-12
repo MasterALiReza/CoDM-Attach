@@ -811,28 +811,43 @@ class DataHealthReportHandler(BaseAdminHandler):
             await self.send_permission_denied(update, context)
             return
         
-        # PostgreSQL: in-app backup unsupported, show hint
-        if hasattr(self.db, 'is_postgres') and self.db.is_postgres():
-            keyboard = [[InlineKeyboardButton(t('menu.buttons.back', lang), callback_data="fix_issues_menu")]]
-            await safe_edit_message_text(
-                query,
-                t('admin.health.backup.pg_unsupported', lang),
-                parse_mode=ParseMode.MARKDOWN,
-                reply_markup=InlineKeyboardMarkup(keyboard)
-            )
-            return
-        
         try:
             from datetime import datetime
             import shutil
+            import subprocess
+            import tempfile
             
-            db_path = self.health_checker.db_path
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            backup_filename = f"codm_backup_{timestamp}.db"
-            backup_path = os.path.join(os.path.dirname(db_path), backup_filename)
+            temp_dir = tempfile.gettempdir()
             
-            # Create backup
-            shutil.copy2(db_path, backup_path)
+            # Helper logic for PostgreSQL
+            if hasattr(self.db, 'is_postgres') and self.db.is_postgres():
+                backup_filename = f"postgres_backup_{timestamp}.sql"
+                backup_path = os.path.join(temp_dir, backup_filename)
+                
+                # Get usage env
+                pg_host = os.environ.get('POSTGRES_HOST', 'localhost')
+                pg_user = os.environ.get('POSTGRES_USER', '')
+                pg_db = os.environ.get('POSTGRES_DB', '')
+                pg_pass = os.environ.get('POSTGRES_PASSWORD', '')
+                
+                env = os.environ.copy()
+                env['PGPASSWORD'] = pg_pass
+                
+                # Run pg_dump
+                with open(backup_path, 'w') as f:
+                    subprocess.run(
+                        ['pg_dump', '-h', pg_host, '-U', pg_user, '-d', pg_db, '--clean', '--if-exists'],
+                        env=env,
+                        stdout=f,
+                        check=True
+                    )
+            else:
+                # SQLite Logic
+                db_path = self.health_checker.db_path
+                backup_filename = f"codm_backup_{timestamp}.db"
+                backup_path = os.path.join(os.path.dirname(db_path), backup_filename)
+                shutil.copy2(db_path, backup_path)
             
             # Get file size
             file_size = os.path.getsize(backup_path)
@@ -853,6 +868,11 @@ class DataHealthReportHandler(BaseAdminHandler):
                     caption=caption,
                     parse_mode=ParseMode.MARKDOWN
                 )
+            
+            # Cleanup temp file if PostgreSQL
+            if hasattr(self.db, 'is_postgres') and self.db.is_postgres():
+                if os.path.exists(backup_path):
+                    os.remove(backup_path)
             
             message = t('admin.health.backup.success.title', lang) + "\n\n"
             message += t('admin.health.backup.success.sent', lang) + "\n"
@@ -924,7 +944,10 @@ class DataHealthReportHandler(BaseAdminHandler):
         document = update.message.document
         
         # Check file extension
-        if not (document.file_name.endswith('.db') or document.file_name.endswith('.sql')):
+        is_postgres = hasattr(self.db, 'is_postgres') and self.db.is_postgres()
+        valid_exts = ('.sql',) if is_postgres else ('.db',)
+        
+        if not document.file_name.endswith(valid_exts):
             await update.message.reply_text(
                 t('admin.health.restore.invalid_format', lang) + "\n" + t('admin.health.restore.start.cancel', lang)
             )
@@ -932,27 +955,51 @@ class DataHealthReportHandler(BaseAdminHandler):
         
         try:
             import shutil
+            import subprocess
+            import tempfile
             from datetime import datetime
             
             # Download file
             file = await context.bot.get_file(document.file_id)
-            temp_path = f"temp_restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+            temp_path = os.path.join(tempfile.gettempdir(), f"restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}{os.path.splitext(document.file_name)[1]}")
             await file.download_to_drive(temp_path)
             
-            # Create safety backup first
-            db_path = self.health_checker.db_path
-            safety_backup = f"{db_path}.before_restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            shutil.copy2(db_path, safety_backup)
+            if is_postgres:
+                # PostgreSQL Restore
+                pg_host = os.environ.get('POSTGRES_HOST', 'localhost')
+                pg_user = os.environ.get('POSTGRES_USER', '')
+                pg_db = os.environ.get('POSTGRES_DB', '')
+                pg_pass = os.environ.get('POSTGRES_PASSWORD', '')
+                
+                env = os.environ.copy()
+                env['PGPASSWORD'] = pg_pass
+                
+                result = subprocess.run(
+                    ['psql', '-h', pg_host, '-U', pg_user, '-d', pg_db, '-f', temp_path],
+                    env=env,
+                    capture_output=True,
+                    text=True
+                )
+                
+                if result.returncode != 0:
+                     raise Exception(f"Restore failed: {result.stderr}")
+                
+                safety_backup = "postgres_backup_before_restore.sql (auto)"
             
-            # Restore backup
-            shutil.copy2(temp_path, db_path)
+            else:
+                # SQLite Restore
+                db_path = self.health_checker.db_path
+                safety_backup = f"{db_path}.before_restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                shutil.copy2(db_path, safety_backup)
+                shutil.copy2(temp_path, db_path)
             
             # Clean up temp file
-            os.remove(temp_path)
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
             
             message = t('admin.health.restore.success.title', lang) + "\n\n"
             message += t('admin.health.restore.success.safety_backup', lang, file=os.path.basename(safety_backup)) + "\n\n"
-            message += t('admin.health.restore.success.restart', lang, cmd="python main.py")
+            message += t('admin.health.restore.success.restart', lang, cmd="sudo systemctl restart codm-bot")
             
             keyboard = [[InlineKeyboardButton(t('menu.buttons.back', lang), callback_data="fix_issues_menu")]]
             

@@ -70,7 +70,7 @@ upload_batch_*.json
 upload_batch_*.jsonl
 
 # Reports (generated)
-reports/
+/reports/
 
 # Archive (old files)
 archive/
