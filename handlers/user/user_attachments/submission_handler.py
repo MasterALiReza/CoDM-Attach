@@ -46,7 +46,7 @@ async def show_user_attachments_menu(update: Update, context: ContextTypes.DEFAU
     
     # بررسی فعال بودن سیستم
     system_enabled = db.get_ua_setting('system_enabled') or '1'
-    if system_enabled != '1':
+    if system_enabled not in ('1', 'true', 'True'):
         text = t("error.generic", lang)
         if query:
             await safe_edit_message_text(
