@@ -1740,7 +1740,7 @@ class DatabasePostgresProxy(DatabasePostgres):
                 # آپدیت آمار
                 cursor.execute("""
                     UPDATE user_submission_stats
-                    SET approved_submissions = approved_submissions + 1
+                    SET approved_count = approved_count + 1
                     WHERE user_id = %s
                 """, (user_id,))
                 
