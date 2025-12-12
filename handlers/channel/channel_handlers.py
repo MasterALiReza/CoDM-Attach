@@ -303,7 +303,7 @@ async def handle_page_navigation(update: Update, context: ContextTypes.DEFAULT_T
     return await channel_management_menu(update, context, page=page)
 
 
-async def view_channel_details(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def view_channel_details(update: Update, context: ContextTypes.DEFAULT_TYPE, channel_id: str = None):
     """نمایش جزئیات یک کانال"""
     query = update.callback_query
     await query.answer()
@@ -313,7 +313,8 @@ async def view_channel_details(update: Update, context: ContextTypes.DEFAULT_TYP
     except Exception:
         lang = 'fa'
     
-    channel_id = query.data.split("_")[2]
+    if not channel_id:
+        channel_id = query.data.split("_")[2]
     db = context.bot_data['database']
     
     channel = db.get_channel_by_id(channel_id)
@@ -459,7 +460,7 @@ async def add_channel_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     except Exception as e:
         logger.error(f"[channel] Error accessing channel {channel_id}: {e}")
-        log_exception(logger, e, {"channel_id": channel_id, "user_id": update.effective_user.id})
+        log_exception(logger, e, str({"channel_id": channel_id, "user_id": update.effective_user.id}))
         try:
             lang = get_user_lang(update, context, context.bot_data.get('database')) or 'fa'
         except Exception:
@@ -647,7 +648,7 @@ async def save_channel_confirm(update: Update, context: ContextTypes.DEFAULT_TYP
             )
         except Exception as e:
             logger.error(f"[Analytics] Error tracking channel added: {e}")
-            log_exception(logger, e, {"channel_id": temp_channel['channel_id'], "admin_id": update.effective_user.id})
+            log_exception(logger, e, str({"channel_id": temp_channel['channel_id'], "admin_id": update.effective_user.id}))
         
         message = t('admin.channels.add.success', lang)
     else:
@@ -797,7 +798,7 @@ async def edit_channel_value(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 )
             except Exception as e:
                 logger.error(f"[Analytics] Error tracking channel update: {e}")
-                log_exception(logger, e, {"channel_id": channel_id, "admin_id": update.effective_user.id})
+                log_exception(logger, e, str({"channel_id": channel_id, "admin_id": update.effective_user.id}))
     else:
         if not value.startswith('https://t.me/'):
             try:
@@ -820,7 +821,7 @@ async def edit_channel_value(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 )
             except Exception as e:
                 logger.error(f"[Analytics] Error tracking channel update: {e}")
-                log_exception(logger, e, {"channel_id": channel_id, "admin_id": update.effective_user.id})
+                log_exception(logger, e, str({"channel_id": channel_id, "admin_id": update.effective_user.id}))
     
     try:
         lang = get_user_lang(update, context, context.bot_data.get('database')) or 'fa'
@@ -941,7 +942,7 @@ async def delete_channel_execute(update: Update, context: ContextTypes.DEFAULT_T
             )
         except Exception as e:
             logger.error(f"[Analytics] Error tracking channel removed: {e}")
-            log_exception(logger, e, {"channel_id": channel_id, "admin_id": update.effective_user.id})
+            log_exception(logger, e, str({"channel_id": channel_id, "admin_id": update.effective_user.id}))
         
         try:
             lang = get_user_lang(update, context, context.bot_data.get('database')) or 'fa'
@@ -987,9 +988,7 @@ async def toggle_channel_status(update: Update, context: ContextTypes.DEFAULT_TY
             lang = 'fa'
         await query.answer(t('admin.channels.toggled', lang), show_alert=True)
         # نمایش مجدد جزئیات با وضعیت جدید
-        # تغییر callback_data برای view
-        update.callback_query.data = f"view_channel_{channel_id}"
-        return await view_channel_details(update, context)
+        return await view_channel_details(update, context, channel_id=channel_id)
     else:
         try:
             lang = get_user_lang(update, context, context.bot_data.get('database')) or 'fa'
@@ -1047,10 +1046,13 @@ async def show_single_channel_stats(update: Update, context: ContextTypes.DEFAUL
             if added_at:
                 try:
                     from datetime import datetime
-                    dt = datetime.fromisoformat(added_at)
+                    if isinstance(added_at, datetime):
+                        dt = added_at
+                    else:
+                        dt = datetime.fromisoformat(str(added_at))
                     date_text = dt.strftime('%Y/%m/%d - %H:%M')
                 except Exception:
-                    date_text = added_at[:10]
+                    date_text = str(added_at)[:10]
                 message += t('admin.channels.stats.single.added_date', lang, date=date_text) + "\n"
             
             # وضعیت
@@ -1076,7 +1078,7 @@ async def show_single_channel_stats(update: Update, context: ContextTypes.DEFAUL
         
     except Exception as e:
         logger.error(f"[channel] Error showing single channel stats: {e}")
-        log_exception(logger, e, {"channel_id": channel_id})
+        log_exception(logger, e, str({"channel_id": channel_id}))
         try:
             lang = get_user_lang(update, context, context.bot_data.get('database')) or 'fa'
         except Exception:
@@ -1123,7 +1125,7 @@ async def show_channel_stats(update: Update, context: ContextTypes.DEFAULT_TYPE)
         
     except Exception as e:
         logger.error(f"[channel] Error showing channel stats: {e}")
-        log_exception(logger, e, {"action": "show_channel_stats"})
+        log_exception(logger, e, str({"action": "show_channel_stats"}))
         try:
             lang = get_user_lang(update, context, context.bot_data.get('database')) or 'fa'
         except Exception:
@@ -1157,7 +1159,7 @@ async def show_funnel_analysis(update: Update, context: ContextTypes.DEFAULT_TYP
         )
     except Exception as e:
         logger.error(f"[channel] Error showing funnel: {e}")
-        log_exception(logger, e, {"action": "show_funnel_analysis"})
+        log_exception(logger, e, str({"action": "show_funnel_analysis"}))
         try:
             lang = get_user_lang(update, context, context.bot_data.get('database')) or 'fa'
         except Exception:
@@ -1192,7 +1194,7 @@ async def show_period_report(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
     except Exception as e:
         logger.error(f"[channel] Error showing period report: {e}")
-        log_exception(logger, e, {"action": "show_period_report"})
+        log_exception(logger, e, str({"action": "show_period_report"}))
         try:
             lang = get_user_lang(update, context, context.bot_data.get('database')) or 'fa'
         except Exception:
@@ -1249,7 +1251,7 @@ async def export_analytics_csv(update: Update, context: ContextTypes.DEFAULT_TYP
         
     except Exception as e:
         logger.error(f"[channel] Error exporting CSV: {e}")
-        log_exception(logger, e, {"action": "export_analytics_csv"})
+        log_exception(logger, e, str({"action": "export_analytics_csv"}))
         await safe_edit_message_text(
             query,
             t('admin.channels.export.error', lang),
@@ -1494,7 +1496,7 @@ async def show_channel_history(update: Update, context: ContextTypes.DEFAULT_TYP
         
     except Exception as e:
         logger.error(f"[channel] Error showing channel history: {e}")
-        log_exception(logger, e, {"action": "show_channel_history"})
+        log_exception(logger, e, str({"action": "show_channel_history"}))
         try:
             lang = get_user_lang(update, context, context.bot_data.get('database')) or 'fa'
         except Exception:
