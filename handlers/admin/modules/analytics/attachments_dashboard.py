@@ -1246,7 +1246,7 @@ class AttachmentsDashboardHandler(BaseAdminHandler):
             _db_name = (c.get('name') or '').strip()
             title_src = self._map_category_name_to_label(_db_name)
             title = self._escape_markdown(title_src)
-            row.append(InlineKeyboardButton(title, callback_data=f"ws_cat_{c['id']}"))
+            row.append(InlineKeyboardButton(title, callback_data=f"weapon_stats_cat_{c['id']}"))
             if len(row) == 2:
                 keyboard.append(row)
                 row = []

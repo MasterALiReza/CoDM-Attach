@@ -190,6 +190,7 @@ class TicketHandler(BaseAdminHandler):
              InlineKeyboardButton(t("admin.tickets.buttons.search", lang), callback_data="adm_tickets_search")],
             [InlineKeyboardButton(t("admin.tickets.buttons.filter_category", lang), callback_data="adm_tickets_filter_category"),
              InlineKeyboardButton(t("admin.tickets.buttons.mine", lang), callback_data="adm_tickets_mine")],
+            [InlineKeyboardButton("💬 تماس مستقیم", callback_data="adm_direct_contact")],
             [InlineKeyboardButton(t("menu.buttons.back", lang), callback_data="admin_back")]
         ]
         

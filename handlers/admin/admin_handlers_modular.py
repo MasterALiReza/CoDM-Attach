@@ -344,6 +344,7 @@ class AdminHandlers(BaseAdminHandler):
         self.weapon_details = self.analytics_handler.weapon_details
         self.att_daily_chart = self.analytics_handler.att_daily_chart
         self.att_download_csv = self.analytics_handler.att_download_csv
+        self.ws_back_to_categories = self.analytics_handler.ws_back_to_categories
         
         # Data Health Report
         self.health_handler = DataHealthReportHandler(self.db, role_manager)

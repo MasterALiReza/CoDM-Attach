@@ -104,6 +104,8 @@ def get_admin_conversation_states(admin_handlers):
             CallbackQueryHandler(admin_handlers.att_daily_chart, pattern="^att_daily_chart_\\d+$"),
             CallbackQueryHandler(admin_handlers.att_download_csv, pattern="^att_download_csv_\\d+$"),
             CallbackQueryHandler(admin_handlers.weapon_details, pattern="^weapon_details_\\d+$"),
+            CallbackQueryHandler(admin_handlers.ws_back_to_categories, pattern="^ws_back_to_categories$"),
+            CallbackQueryHandler(admin_handlers.view_weapon_stats, pattern="^ws_back_to_mode$"),
             # CMS
             CallbackQueryHandler(admin_handlers.cms_menu, pattern="^admin_cms$"),
             CallbackQueryHandler(admin_handlers.cms_add_start, pattern="^cms_add$"),
