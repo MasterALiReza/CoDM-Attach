@@ -106,6 +106,7 @@ async def show_my_attachments_by_status(update: Update, context: ContextTypes.DE
     """نمایش اتچمنت‌های کاربر بر اساس وضعیت"""
     query = update.callback_query
     await query.answer()
+    lang = get_user_lang(update, context, db) or 'fa'
     
     status_map = {
         'ua_my_pending': 'pending',
@@ -143,8 +144,6 @@ async def show_my_attachments_by_status(update: Update, context: ContextTypes.DE
     }
     
     message = f"📁 {status_titles[status]}\n\n"
-    
-    lang = get_user_lang(update, context, db) or 'fa'
     if not attachments:
         message += t('attachment.none', lang)
         keyboard = [[InlineKeyboardButton(t("menu.buttons.back", lang), callback_data="ua_my")]]
