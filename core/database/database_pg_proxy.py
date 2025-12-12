@@ -9,6 +9,7 @@ from typing import List, Dict, Optional, Any, Tuple
 from utils.logger import get_logger, log_exception
 from config.config import WEAPON_CATEGORIES
 from core.cache.cache_manager import cached
+from datetime import date, datetime
 
 logger = get_logger('database.pg_proxy', 'database.log')
 
