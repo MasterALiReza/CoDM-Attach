@@ -80,69 +80,114 @@ class DataManagementHandler(BaseAdminHandler):
     async def auto_backup_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Auto Backup Settings Menu"""
         query = update.callback_query
-        await query.answer()
+        try:
+            await query.answer()
+        except Exception:
+            pass
+            
         lang = get_user_lang(update, context, self.db) or 'fa'
 
-        # Get current settings
-        enabled = self.db.get_setting("auto_backup_enabled", "0") == "1"
-        current_interval = self.db.get_setting("auto_backup_interval", "24h")
+        try:
+            # Get current settings
+            enabled = self.db.get_setting("auto_backup_enabled", "0") == "1"
+            current_interval = self.db.get_setting("auto_backup_interval", "24h")
 
-        status_emoji = "✅" if enabled else "❌"
-        status_text = t("common.enabled", lang) if enabled else t("common.disabled", lang)
-        
-        text = t("admin.auto_backup.menu.title", lang) + "\n\n"
-        text += t("admin.auto_backup.menu.status", lang, emoji=status_emoji, status=status_text) + "\n"
-        text += t("admin.auto_backup.menu.interval", lang, interval=current_interval)
+            status_emoji = "✅" if enabled else "❌"
+            # FIX: Use correct keys common.status.enabled / disabled
+            status_text = t("common.status.enabled", lang) if enabled else t("common.status.disabled", lang)
+            
+            text = t("admin.auto_backup.menu.title", lang) + "\n\n"
+            text += t("admin.auto_backup.menu.status", lang, emoji=status_emoji, status=status_text) + "\n"
+            text += t("admin.auto_backup.menu.interval", lang, interval=current_interval)
 
-        # Build interval buttons
-        intervals = [("24h", "24h"), ("1w", "1w"), ("2w", "2w"), ("1m", "1m")]
-        interval_row = []
-        for label, val in intervals:
-            # Highlight selected
-            btn_text = f"• {label} •" if val == current_interval else label
-            interval_row.append(InlineKeyboardButton(btn_text, callback_data=f"set_ab_interval_{val}"))
+            # Build interval buttons
+            intervals = [("24h", "24h"), ("1w", "1w"), ("2w", "2w"), ("1m", "1m")]
+            interval_row = []
+            for label, val in intervals:
+                # Highlight selected
+                btn_text = f"• {label} •" if val == current_interval else label
+                interval_row.append(InlineKeyboardButton(btn_text, callback_data=f"set_ab_interval_{val}"))
 
-        keyboard = [
-            [InlineKeyboardButton(
-                t("admin.auto_backup.btn.toggle_off" if enabled else "admin.auto_backup.btn.toggle_on", lang), 
-                callback_data="toggle_auto_backup"
-            )],
-            interval_row,
-            [InlineKeyboardButton(t("menu.buttons.back", lang), callback_data="admin_data_management")]
-        ]
+            keyboard = [
+                [InlineKeyboardButton(
+                    t("admin.auto_backup.btn.toggle_off" if enabled else "admin.auto_backup.btn.toggle_on", lang), 
+                    callback_data="toggle_auto_backup"
+                )],
+                interval_row,
+                [InlineKeyboardButton(t("menu.buttons.back", lang), callback_data="admin_data_management")]
+            ]
 
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+        except Exception as e:
+            from utils.logger import get_logger
+            logger = get_logger("admin_backup")
+            logger.error(f"Error in auto_backup_menu: {e}", exc_info=True)
+            await query.edit_message_text(f"Error loading menu: {e}", reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton(t("menu.buttons.back", lang), callback_data="admin_data_management")]
+            ]))
+            
         return ADMIN_MENU
 
     async def toggle_auto_backup(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Toggle auto backup on/off"""
         query = update.callback_query
-        await query.answer()
-        
-        enabled = self.db.get_setting("auto_backup_enabled", "0") == "1"
-        new_state = not enabled
-        current_interval = self.db.get_setting("auto_backup_interval", "24h")
-        
-        scheduler = await self._get_scheduler(context)
-        await scheduler.update_schedule(context.application, new_state, current_interval)
-        
-        # Refresh menu
-        await self.auto_backup_menu(update, context)
+        # Always answer first to stop loading animation
+        try:
+            await query.answer()
+        except Exception:
+            pass
+            
+        try:
+            enabled = self.db.get_setting("auto_backup_enabled", "0") == "1"
+            new_state = not enabled
+            current_interval = self.db.get_setting("auto_backup_interval", "24h")
+            
+            scheduler = await self._get_scheduler(context)
+            await scheduler.update_schedule(context.application, new_state, current_interval)
+            
+            # Refresh menu
+            await self.auto_backup_menu(update, context)
+            
+        except Exception as e:
+            from utils.logger import get_logger
+            logger = get_logger("admin_backup")
+            logger.error(f"Error in toggle_auto_backup: {e}", exc_info=True)
+            # Try to show alert
+            try:
+                await query.answer(f"Error: {str(e)}", show_alert=True)
+            except:
+                pass
+            # Try to refresh menu anyway to show current state
+            await self.auto_backup_menu(update, context)
 
     async def set_auto_backup_interval(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Set auto backup interval"""
         query = update.callback_query
-        await query.answer()
+        try:
+            await query.answer()
+        except Exception:
+            pass
         
-        # Extract interval from callback_data: set_ab_interval_24h
-        new_interval = query.data.replace("set_ab_interval_", "")
-        enabled = self.db.get_setting("auto_backup_enabled", "0") == "1"
-        
-        scheduler = await self._get_scheduler(context)
-        await scheduler.update_schedule(context.application, enabled, new_interval)
-        
-        # Refresh menu
-        await self.auto_backup_menu(update, context)
+        try:
+            # Extract interval from callback_data: set_ab_interval_24h
+            new_interval = query.data.replace("set_ab_interval_", "")
+            enabled = self.db.get_setting("auto_backup_enabled", "0") == "1"
+            
+            scheduler = await self._get_scheduler(context)
+            await scheduler.update_schedule(context.application, enabled, new_interval)
+            
+            # Refresh menu
+            await self.auto_backup_menu(update, context)
+            
+        except Exception as e:
+            from utils.logger import get_logger
+            logger = get_logger("admin_backup")
+            logger.error(f"Error in set_auto_backup_interval: {e}", exc_info=True)
+            try:
+                await query.answer(f"Error: {str(e)}", show_alert=True)
+            except:
+                pass
+            await self.auto_backup_menu(update, context)
 
     @log_admin_action("create_backup")
     async def create_backup(self, update: Update, context: ContextTypes.DEFAULT_TYPE):

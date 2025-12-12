@@ -467,7 +467,7 @@
   "admin.channels.clear.success": "✅ All channels deleted successfully!",
   "admin.channels.clear.error": "❌ Failed to delete channels!",
   "admin.channels.reorder.none": "⚠️ There are no channels to reorder!",
-  "admin.channels.reorder.title": "🔀 <b>Reorder channels</b>",
+  "admin.channels.reorder.title": "🔀 Reorder channels",
   "admin.channels.reorder.instructions": "Use ⬆️ and ⬇️ to change the order.\nChannels are shown to users from top to bottom.",
   "admin.channels.reorder.confirm": "✅ Confirm and go back",
   "admin.channels.reorder.moved_up": "⬆️ Channel moved up",
